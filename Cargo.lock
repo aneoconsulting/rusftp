@@ -859,14 +859,10 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "futures",
- "futures-core",
- "futures-util",
  "russh",
  "serde",
  "thiserror",
  "tokio",
- "tokio-stream",
- "tokio-util",
 ]
 
 [[package]]
@@ -1135,7 +1131,6 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
- "tokio-util",
 ]
 
 [[package]]

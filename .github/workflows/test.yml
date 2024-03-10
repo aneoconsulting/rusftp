@@ -47,4 +47,4 @@ jobs:
           cargo fmt --check
       - name: Clippy
         run: |
-          cargo clippy --no-deps -- -Dwarnings
+          cargo clippy --no-deps -- -Dwarnings -Dunused_extern_crates
