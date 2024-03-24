@@ -363,6 +363,61 @@ impl From<russh::Error> for Message {
     }
 }
 
+#[cfg(test)]
+mod test_utils {
+    use serde::{de::DeserializeOwned, Serialize};
+    use std::{cmp::PartialEq, fmt::Debug};
+
+    use crate::{decoder::SftpDecoder, encoder::SftpEncoder, Error};
+
+    pub(crate) fn encode_decode<T>(value: T, expected: &[u8])
+    where
+        T: Serialize + DeserializeOwned + PartialEq + Debug,
+    {
+        let mut serializer = SftpEncoder::new(Vec::new());
+        let input = value;
+        input
+            .serialize(&mut serializer)
+            .expect("Serialization should succeed");
+        let encoded = serializer.buf.as_slice();
+        assert_eq!(encoded, expected);
+        let mut deserializer = SftpDecoder::new(encoded);
+        let output = T::deserialize(&mut deserializer).expect("Deserialization should succeed");
+
+        assert_eq!(input, output);
+    }
+
+    pub(crate) fn fail_decode<T>(encoded: &[u8]) -> Error
+    where
+        T: DeserializeOwned + Debug,
+    {
+        let mut deserializer = SftpDecoder::new(encoded);
+        T::deserialize(&mut deserializer).expect_err("Deserialization should fail")
+    }
+
+    pub(crate) const BYTES_VALID: &[(&[u8], &[u8])] = &[
+            (b"" as &[u8], b"\0\0\0\0" as &[u8]),
+            (b"\0", b"\0\0\0\x01\0"),
+            (b"\0\0", b"\0\0\0\x02\0\0"),
+            (b"byte string", b"\0\0\0\x0bbyte string"),
+            (
+                b"byte string with\nline returns and spaces",
+                b"\0\0\0\x28byte string with\nline returns and spaces",
+            ),
+            (b"null\0bytes", b"\0\0\0\x0anull\0bytes"),
+            (b"null\0bytes\0", b"\0\0\0\x0bnull\0bytes\0"),
+            (
+              b"this is a very long byte string that should be larger than 256 bytes and would therefore need a size encoded into two bytes. This serve as a good example of very long messages to ensure the logic is well defined for large inputs like this one. And I ran out of description for this very long byte string so here it is: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+              b"\0\0\x01\xbathis is a very long byte string that should be larger than 256 bytes and would therefore need a size encoded into two bytes. This serve as a good example of very long messages to ensure the logic is well defined for large inputs like this one. And I ran out of description for this very long byte string so here it is: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            ),
+        ];
+
+    pub(crate) const BYTES_INVALID: &[(&[u8], Error)] = &[
+        (b"" as &[u8], Error::NotEnoughData),
+        (b"\0\0\0\x01" as &[u8], Error::NotEnoughData),
+    ];
+}
+
 /*
 SFTP protocol frame
 

@@ -22,3 +22,33 @@ use super::Path;
 pub struct RealPath {
     pub path: Path,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
+        Path,
+    };
+
+    use super::RealPath;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (bytes, encoded) in BYTES_VALID {
+            encode_decode(
+                RealPath {
+                    path: Path(Bytes::from_static(bytes)),
+                },
+                encoded,
+            );
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (bytes, expected) in BYTES_INVALID {
+            assert_eq!(fail_decode::<RealPath>(bytes), *expected);
+        }
+    }
+}
