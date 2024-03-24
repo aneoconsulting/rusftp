@@ -37,7 +37,7 @@ mod test {
     #[test]
     fn decode_failure() {
         for (bytes, expected) in BYTES_INVALID {
-            assert_eq!(fail_decode::<Handle>(bytes), *expected);
+            assert_eq!(fail_decode::<Handle>(bytes), expected);
         }
     }
 }
