@@ -16,10 +16,10 @@
 
 use std::collections::HashMap;
 
-use futures::Future;
 use russh::client::Msg;
 use russh::Channel;
 use russh::ChannelMsg;
+use std::future::Future;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{message, Message};
