@@ -22,3 +22,33 @@ use super::Handle;
 pub struct ReadDir {
     pub handle: Handle,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
+        Handle,
+    };
+
+    use super::ReadDir;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (bytes, encoded) in BYTES_VALID {
+            encode_decode(
+                ReadDir {
+                    handle: Handle(Bytes::from_static(bytes)),
+                },
+                encoded,
+            );
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (bytes, expected) in BYTES_INVALID {
+            assert_eq!(fail_decode::<ReadDir>(bytes), *expected);
+        }
+    }
+}
