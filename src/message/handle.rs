@@ -19,3 +19,25 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Handle(pub Bytes);
+
+#[cfg(test)]
+mod test {
+    use crate::message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID};
+
+    use super::Handle;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (bytes, encoded) in BYTES_VALID {
+            encode_decode(Handle(Bytes::from_static(bytes)), encoded);
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (bytes, expected) in BYTES_INVALID {
+            assert_eq!(fail_decode::<Handle>(bytes), expected);
+        }
+    }
+}

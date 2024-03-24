@@ -25,3 +25,25 @@ impl<T: Into<Bytes>> From<T> for Path {
         Self(value.into())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID};
+
+    use super::Path;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (bytes, encoded) in BYTES_VALID {
+            encode_decode(Path(Bytes::from_static(bytes)), encoded);
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (bytes, expected) in BYTES_INVALID {
+            assert_eq!(fail_decode::<Path>(bytes), expected);
+        }
+    }
+}
