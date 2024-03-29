@@ -23,3 +23,37 @@ pub struct Symlink {
     pub link_path: Path,
     pub target_path: Path,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Error, Path,
+    };
+
+    use super::Symlink;
+    use bytes::Bytes;
+
+    const SYMLINK_VALID: &[u8] = b"\0\0\0\x04link\0\0\0\x06target";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            Symlink {
+                link_path: Path(Bytes::from_static(b"link")),
+                target_path: Path(Bytes::from_static(b"target")),
+            },
+            SYMLINK_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..SYMLINK_VALID.len() {
+            assert_eq!(
+                fail_decode::<Symlink>(&SYMLINK_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

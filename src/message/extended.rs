@@ -23,3 +23,36 @@ pub struct Extended {
     #[serde(rename = "data_implicit_length")]
     pub data: Bytes,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::message::test_utils::{encode_decode, fail_decode, BYTES_INVALID};
+
+    use super::Extended;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (request, data, encoded) in [
+            (b"" as &[u8], b"" as &[u8], b"\0\0\0\0" as &[u8]),
+            (b"", b"data", b"\0\0\0\0data"),
+            (b"request", b"", b"\0\0\0\x07request"),
+            (b"request", b"data", b"\0\0\0\x07requestdata"),
+        ] {
+            encode_decode(
+                Extended {
+                    request: Bytes::from_static(request),
+                    data: Bytes::from_static(data),
+                },
+                encoded,
+            );
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (bytes, expected) in BYTES_INVALID {
+            assert_eq!(fail_decode::<Extended>(bytes), expected);
+        }
+    }
+}

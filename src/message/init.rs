@@ -25,3 +25,48 @@ pub struct Init {
     #[serde(rename = "extensions_implicit_length")]
     pub extensions: BTreeMap<Bytes, Bytes>,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Error,
+    };
+
+    use super::Init;
+    use bytes::Bytes;
+
+    const INIT_VALID: &[u8] = b"\xfe\xdc\xba\x98\0\0\0\x03key\0\0\0\x05value";
+
+    #[test]
+    fn encode_success() {
+        for (version, map, encoded) in [
+            (0u32, &[] as &[(&[u8], &[u8])], b"\0\0\0\0" as &[u8]),
+            (0xfedcba98, &[], b"\xfe\xdc\xba\x98"),
+            (0xfedcba98, &[(b"key", b"value")], INIT_VALID),
+            (
+                0xfedcba98,
+                &[(b"key0", b"value0"), (b"key1", b"value1")],
+                b"\xfe\xdc\xba\x98\0\0\0\x04key0\0\0\0\x06value0\0\0\0\x04key1\0\0\0\x06value1",
+            ),
+        ] {
+            encode_decode(
+                Init {
+                    version,
+                    extensions: map
+                        .iter()
+                        .map(|(k, v)| (Bytes::from_static(k), Bytes::from_static(v)))
+                        .collect(),
+                },
+                encoded,
+            );
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 5..INIT_VALID.len() {
+            assert_eq!(fail_decode::<Init>(&INIT_VALID[..i]), Error::NotEnoughData);
+        }
+    }
+}

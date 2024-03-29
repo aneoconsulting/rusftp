@@ -252,11 +252,16 @@ impl<'a, 'de> de::SeqAccess<'de> for SftpDecoderSeq<'a, 'de> {
                 self.nel = Some(nel - 1);
                 Ok(Some(seed.deserialize(&mut *self.decoder)?))
             }
-            None => match seed.deserialize(&mut *self.decoder) {
-                Ok(value) => Ok(Some(value)),
-                Err(Error::NotEnoughData) => Ok(None),
-                Err(err) => Err(err),
-            },
+            None => {
+                if self.decoder.buf.is_empty() {
+                    Ok(None)
+                } else {
+                    match seed.deserialize(&mut *self.decoder) {
+                        Ok(value) => Ok(Some(value)),
+                        Err(err) => Err(err),
+                    }
+                }
+            }
         }
     }
 

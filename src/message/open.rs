@@ -33,3 +33,38 @@ pub mod pflags {
     pub const TRUNCATE: u32 = 0x00000010;
     pub const EXCLUDE: u32 = 0x00000020;
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Attrs, Error, Path,
+    };
+
+    use super::Open;
+    use bytes::Bytes;
+
+    const OPEN_VALID: &[u8] = b"\0\0\0\x08filename\x56\xfe\x78\x21\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            Open {
+                filename: Path(Bytes::from_static(b"filename")),
+                pflags: 0x56fe7821,
+                attrs: Attrs {
+                    size: Some(0xa7735),
+                    ..Default::default()
+                },
+            },
+            OPEN_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..OPEN_VALID.len() {
+            assert_eq!(fail_decode::<Open>(&OPEN_VALID[..i]), Error::NotEnoughData);
+        }
+    }
+}

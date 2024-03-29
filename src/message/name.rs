@@ -24,3 +24,39 @@ pub struct Name {
     pub long_name: Path,
     pub attrs: Attrs,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Attrs, Error, Path,
+    };
+
+    use super::Name;
+    use bytes::Bytes;
+
+    const NAME_VALID: &[u8] =
+        b"\0\0\0\x08filename\0\0\0\x09long name\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            Name {
+                filename: Path(Bytes::from_static(b"filename")),
+                long_name: Path(Bytes::from_static(b"long name")),
+                attrs: Attrs {
+                    size: Some(0xa7735),
+                    ..Default::default()
+                },
+            },
+            NAME_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..NAME_VALID.len() {
+            assert_eq!(fail_decode::<Name>(&NAME_VALID[..i]), Error::NotEnoughData);
+        }
+    }
+}
