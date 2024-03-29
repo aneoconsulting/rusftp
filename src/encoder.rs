@@ -53,9 +53,9 @@ macro_rules! serialize {
             type Ok = ();
             type Error = Error;
 
-            fn $serialize<T: ?Sized>(&mut self, $($key: &'static str,)? value: &T) -> Result<(), Self::Error>
+            fn $serialize<T>(&mut self, $($key: &'static str,)? value: &T) -> Result<(), Self::Error>
             where
-                T: serde::Serialize,
+                T: serde::Serialize + ?Sized,
             {
                 $(self.current_field = $key;)?
                 value.serialize(&mut **self)
@@ -125,9 +125,9 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
         Ok(())
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -149,19 +149,19 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
         self.serialize_u32(variant_index)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
+    fn serialize_newtype_struct<T>(
         self,
         name: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.current_field = name;
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         variant_index: u32,
@@ -169,7 +169,7 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.current_field = variant;
         self.serialize_u32(variant_index)?;
@@ -265,16 +265,16 @@ impl<'a> ser::SerializeMap for &'a mut SftpEncoder {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         key.serialize(&mut **self)
     }
 
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
