@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use russh::client::Msg;
 use russh::Channel;
 use russh::ChannelMsg;
@@ -24,6 +25,33 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::{message, Message};
 
+/// SFTP client
+///
+/// ```
+/// # use std::sync::Arc;
+/// # use async_trait::async_trait;
+/// # tokio_test::block_on(async {
+/// struct Handler;
+///
+/// #[async_trait]
+/// impl russh::client::Handler for Handler {
+///     type Error = russh::Error;
+///     async fn check_server_key(
+///         &mut self,
+///         server_public_key: &russh_keys::key::PublicKey,
+///     ) -> Result<bool, Self::Error> {
+///         Ok(true)
+///     }
+/// }
+/// let config = Arc::new(russh::client::Config::default());
+/// let mut ssh = russh::client::connect(config, ("localhost", 2222), Handler).await.unwrap();
+/// ssh.authenticate_password("user", "pass").await.unwrap();
+///
+/// let sftp = rusftp::SftpClient::new(&ssh).await.unwrap();
+/// let stat = sftp.stat(rusftp::Stat{path: ".".into()}).await.unwrap();
+/// println!("stat '.': {stat:?}");
+/// # })
+/// ```
 pub struct SftpClient {
     commands: mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>,
 }
@@ -59,7 +87,10 @@ macro_rules! command {
 }
 
 impl SftpClient {
-    pub async fn new(mut channel: Channel<Msg>) -> Result<Self, std::io::Error> {
+    pub async fn new<T: ToSftpChannel>(ssh: T) -> Result<Self, std::io::Error> {
+        Self::with_channel(ssh.to_sftp_channel().await?).await
+    }
+    pub async fn with_channel(mut channel: Channel<Msg>) -> Result<Self, std::io::Error> {
         // Start SFTP subsystem
         match channel.request_subsystem(false, "sftp").await {
             Ok(_) => (),
@@ -88,41 +119,46 @@ impl SftpClient {
         })?;
 
         // Check handshake response
-        match channel.wait().await {
-            Some(ChannelMsg::Data { data }) => {
-                match Message::decode(data.as_ref()) {
-                    // Valid response: continue
-                    Ok((
-                        _,
-                        Message::Version(message::Version {
-                            version: 3,
-                            extensions: _,
-                        }),
-                    )) => (),
+        loop {
+            match channel.wait().await {
+                Some(ChannelMsg::Data { data }) => {
+                    match Message::decode(data.as_ref()) {
+                        // Valid response: continue
+                        Ok((
+                            _,
+                            Message::Version(message::Version {
+                                version: 3,
+                                extensions: _,
+                            }),
+                        )) => break,
 
-                    // Invalid responses: abort
-                    Ok((_, Message::Version(_))) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Invalid sftp version",
-                        ));
-                    }
-                    Ok(_) => {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Bad SFTP init",
-                        ));
-                    }
-                    Err(err) => {
-                        return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
+                        // Invalid responses: abort
+                        Ok((_, Message::Version(_))) => {
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Invalid sftp version",
+                            ));
+                        }
+                        Ok(_) => {
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Bad SFTP init",
+                            ));
+                        }
+                        Err(err) => {
+                            return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
+                        }
                     }
                 }
-            }
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Failed to start SFTP subsystem",
-                ));
+                // Unrelated event has been received, looping is required
+                Some(_) => (),
+                // Channel has been closed
+                None => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Failed to start SFTP subsystem",
+                    ));
+                }
             }
         }
 
@@ -225,4 +261,34 @@ impl SftpClient {
     command!(rename: Rename);
     command!(readlink: ReadLink -> Name);
     command!(symlink: Symlink);
+}
+
+#[async_trait]
+pub trait ToSftpChannel {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error>;
+}
+
+#[async_trait]
+impl ToSftpChannel for Channel<Msg> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error> {
+        Ok(self)
+    }
+}
+
+#[async_trait]
+impl<H: russh::client::Handler> ToSftpChannel for &russh::client::Handle<H> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error> {
+        match self.channel_open_session().await {
+            Ok(channel) => Ok(channel),
+            Err(russh::Error::IO(err)) => Err(err),
+            Err(err) => Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
+        }
+    }
+}
+
+#[async_trait]
+impl<H: russh::client::Handler> ToSftpChannel for russh::client::Handle<H> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error> {
+        (&self).to_sftp_channel().await
+    }
 }

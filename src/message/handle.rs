@@ -14,11 +14,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::Deref;
+
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Handle(pub Bytes);
+
+impl<T: Into<Bytes>> From<T> for Handle {
+    fn from(value: T) -> Self {
+        Self(value.into())
+    }
+}
+
+impl Deref for Handle {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl AsRef<[u8]> for Handle {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
 
 #[cfg(test)]
 mod test {
