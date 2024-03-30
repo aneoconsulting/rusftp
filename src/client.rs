@@ -15,14 +15,16 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::future::Future;
 
 use async_trait::async_trait;
+use bytes::Buf;
 use russh::client::Msg;
 use russh::Channel;
 use russh::ChannelMsg;
-use std::future::Future;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::StatusCode;
 use crate::{message, Message};
 
 /// SFTP client
@@ -210,7 +212,21 @@ impl SftpClient {
                                 }
                             }
                             Err(err) => {
-                                eprintln!("SFTP Error: Could not decode server frame: {err}");
+                                if let Some(mut buf) = data.as_ref().get(5..9){
+
+                                let id = buf.get_u32();
+                                if let Some(tx) = onflight.remove(&id) {
+                                    _ = tx.send(Message::Status(crate::Status {
+                                        code: StatusCode::BadMessage as u32,
+                                        error: err.to_string().into(),
+                                        language: "en".into(),
+                                    }));
+                                } else {
+                                    eprintln!("SFTP Error: Received a reply with an invalid id");
+                                }
+                                } else {
+                                    eprintln!("SFTP Error: Received a bad reply");
+                                }
                             }
                         }
                     },

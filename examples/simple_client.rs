@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use rusftp::RealPath;
 
 struct Handler;
 
@@ -27,4 +28,6 @@ pub async fn main() {
 
     let cwd = sftp.stat(rusftp::Stat { path: ".".into() }).await.unwrap();
     println!("CWD: {:?}", cwd);
+
+    sftp.realpath(RealPath { path: ".".into() }).await.unwrap();
 }
