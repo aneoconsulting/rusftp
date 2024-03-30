@@ -29,22 +29,18 @@ use crate::{message, Message};
 
 /// SFTP client
 ///
-/// ```
+/// ```no_run
 /// # use std::sync::Arc;
 /// # use async_trait::async_trait;
-/// # tokio_test::block_on(async {
 /// struct Handler;
 ///
 /// #[async_trait]
 /// impl russh::client::Handler for Handler {
 ///     type Error = russh::Error;
-///     async fn check_server_key(
-///         &mut self,
-///         server_public_key: &russh_keys::key::PublicKey,
-///     ) -> Result<bool, Self::Error> {
-///         Ok(true)
-///     }
+///     // ...
 /// }
+///
+/// # async fn dummy() -> Result<(), Box<dyn std::error::Error>> {
 /// let config = Arc::new(russh::client::Config::default());
 /// let mut ssh = russh::client::connect(config, ("localhost", 2222), Handler).await.unwrap();
 /// ssh.authenticate_password("user", "pass").await.unwrap();
@@ -52,7 +48,8 @@ use crate::{message, Message};
 /// let sftp = rusftp::SftpClient::new(&ssh).await.unwrap();
 /// let stat = sftp.stat(rusftp::Stat{path: ".".into()}).await.unwrap();
 /// println!("stat '.': {stat:?}");
-/// # })
+/// # Ok(())
+/// # }
 /// ```
 pub struct SftpClient {
     commands: mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>,
