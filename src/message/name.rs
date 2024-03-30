@@ -14,15 +14,109 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::{
+    borrow::{Borrow, BorrowMut},
+    ops::{Deref, DerefMut, Index, IndexMut},
+    slice::SliceIndex,
+};
+
 use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-pub struct Name {
+pub struct NameEntry {
     pub filename: Path,
     pub long_name: Path,
     pub attrs: Attrs,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+pub struct Name(pub Vec<NameEntry>);
+
+impl IntoIterator for Name {
+    type Item = NameEntry;
+
+    type IntoIter = <Vec<NameEntry> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Name {
+    type Item = &'a NameEntry;
+
+    type IntoIter = <&'a Vec<NameEntry> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Name {
+    type Item = &'a mut NameEntry;
+
+    type IntoIter = <&'a mut Vec<NameEntry> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
+}
+
+impl FromIterator<NameEntry> for Name {
+    fn from_iter<T: IntoIterator<Item = NameEntry>>(iter: T) -> Self {
+        Self(Vec::from_iter(iter))
+    }
+}
+
+impl<I: SliceIndex<[NameEntry]>> Index<I> for Name {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<I: SliceIndex<[NameEntry]>> IndexMut<I> for Name {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl AsRef<[NameEntry]> for Name {
+    fn as_ref(&self) -> &[NameEntry] {
+        &self.0
+    }
+}
+impl AsMut<[NameEntry]> for Name {
+    fn as_mut(&mut self) -> &mut [NameEntry] {
+        &mut self.0
+    }
+}
+
+impl Deref for Name {
+    type Target = [NameEntry];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Name {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Borrow<[NameEntry]> for Name {
+    fn borrow(&self) -> &[NameEntry] {
+        &self.0
+    }
+}
+impl BorrowMut<[NameEntry]> for Name {
+    fn borrow_mut(&mut self) -> &mut [NameEntry] {
+        &mut self.0
+    }
 }
 
 #[cfg(test)]
@@ -32,7 +126,7 @@ mod test {
         Attrs, Error, Path,
     };
 
-    use super::Name;
+    use super::NameEntry;
     use bytes::Bytes;
 
     const NAME_VALID: &[u8] =
@@ -41,7 +135,7 @@ mod test {
     #[test]
     fn encode_success() {
         encode_decode(
-            Name {
+            NameEntry {
                 filename: Path(Bytes::from_static(b"filename")),
                 long_name: Path(Bytes::from_static(b"long name")),
                 attrs: Attrs {
@@ -56,7 +150,10 @@ mod test {
     #[test]
     fn decode_failure() {
         for i in 0..NAME_VALID.len() {
-            assert_eq!(fail_decode::<Name>(&NAME_VALID[..i]), Error::NotEnoughData);
+            assert_eq!(
+                fail_decode::<NameEntry>(&NAME_VALID[..i]),
+                Error::NotEnoughData
+            );
         }
     }
 }

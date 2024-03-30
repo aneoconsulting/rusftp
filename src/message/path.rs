@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::Deref;
+
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +25,20 @@ pub struct Path(pub Bytes);
 impl<T: Into<Bytes>> From<T> for Path {
     fn from(value: T) -> Self {
         Self(value.into())
+    }
+}
+
+impl Deref for Path {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl AsRef<[u8]> for Path {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
     }
 }
 
