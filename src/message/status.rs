@@ -214,3 +214,53 @@ impl From<Status> for std::io::Error {
 }
 
 impl std::error::Error for Status {}
+
+#[cfg(test)]
+mod test {
+    use bytes::Bytes;
+
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Error,
+    };
+
+    use super::{Status, StatusCode};
+
+    const STATUS_VALID: &[u8] = b"\0\0\0\x01\0\0\0\x03eof\0\0\0\x02en";
+
+    #[test]
+    fn encode_success() {
+        for (code, encoded) in [
+            (StatusCode::Ok, b"\0\0\0\x00"),
+            (StatusCode::Eof, b"\0\0\0\x01"),
+            (StatusCode::NoSuchFile, b"\0\0\0\x02"),
+            (StatusCode::PermissionDenied, b"\0\0\0\x03"),
+            (StatusCode::Failure, b"\0\0\0\x04"),
+            (StatusCode::BadMessage, b"\0\0\0\x05"),
+            (StatusCode::NoConnection, b"\0\0\0\x06"),
+            (StatusCode::ConnectionLost, b"\0\0\0\x07"),
+            (StatusCode::OpUnsupported, b"\0\0\0\x08"),
+        ] {
+            encode_decode(code, encoded);
+        }
+
+        encode_decode(
+            Status {
+                code: 1,
+                error: Bytes::from_static(b"eof"),
+                language: Bytes::from_static(b"en"),
+            },
+            STATUS_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..STATUS_VALID.len() {
+            assert_eq!(
+                fail_decode::<Status>(&STATUS_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

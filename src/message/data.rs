@@ -41,3 +41,25 @@ impl AsRef<[u8]> for Data {
         self.0.as_ref()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID};
+
+    use super::Data;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (bytes, encoded) in BYTES_VALID {
+            encode_decode(Data(Bytes::from_static(bytes)), encoded);
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (bytes, expected) in BYTES_INVALID {
+            assert_eq!(fail_decode::<Data>(bytes), expected);
+        }
+    }
+}

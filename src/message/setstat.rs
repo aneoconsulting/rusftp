@@ -23,3 +23,40 @@ pub struct SetStat {
     pub path: Path,
     pub attrs: Attrs,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Attrs, Error, Path,
+    };
+
+    use super::SetStat;
+    use bytes::Bytes;
+
+    const SETSTAT_VALID: &[u8] = b"\0\0\0\x04path\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            SetStat {
+                path: Path(Bytes::from_static(b"path")),
+                attrs: Attrs {
+                    size: Some(0xa7735),
+                    ..Default::default()
+                },
+            },
+            SETSTAT_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..SETSTAT_VALID.len() {
+            assert_eq!(
+                fail_decode::<SetStat>(&SETSTAT_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

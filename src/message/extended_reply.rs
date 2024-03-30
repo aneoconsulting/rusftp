@@ -22,3 +22,23 @@ pub struct ExtendedReply {
     #[serde(rename = "data_implicit_length")]
     pub data: Bytes,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::message::test_utils::{encode_decode, BYTES_VALID};
+
+    use super::ExtendedReply;
+    use bytes::Bytes;
+
+    #[test]
+    fn encode_success() {
+        for (bytes, _) in BYTES_VALID {
+            encode_decode(
+                ExtendedReply {
+                    data: Bytes::from_static(bytes),
+                },
+                bytes,
+            );
+        }
+    }
+}

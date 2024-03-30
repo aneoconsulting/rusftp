@@ -24,6 +24,17 @@ pub struct Attrs {
     pub time: Option<Time>,
 }
 
+impl Attrs {
+    pub const fn new() -> Self {
+        Self {
+            size: None,
+            owner: None,
+            perms: None,
+            time: None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
 #[non_exhaustive]
@@ -120,6 +131,7 @@ impl<'de> Deserialize<'de> for Attrs {
     where
         D: serde::Deserializer<'de>,
     {
+        use serde::de::Error;
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
             type Value = Attrs;
@@ -137,6 +149,14 @@ impl<'de> Deserialize<'de> for Attrs {
             {
                 let mut attrs = Attrs::default();
                 let attr_flags: u32 = next!(seq, "attr_flags");
+
+                let all_flags = AttrFlags::Size as u32
+                    | AttrFlags::Owner as u32
+                    | AttrFlags::Perms as u32
+                    | AttrFlags::Time as u32;
+                if attr_flags & !all_flags != 0 {
+                    return Err(A::Error::custom("invalid attr"));
+                }
 
                 if (attr_flags & AttrFlags::Size as u32) != 0 {
                     attrs.size = Some(next!(seq, "attr_size"));
@@ -164,5 +184,36 @@ impl<'de> Deserialize<'de> for Attrs {
         }
 
         deserializer.deserialize_tuple(5, Visitor)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode, ATTRS_VALID},
+        Error,
+    };
+
+    use super::Attrs;
+
+    #[test]
+    fn encode_success() {
+        for (attrs, encoded) in ATTRS_VALID {
+            encode_decode(attrs, encoded);
+        }
+    }
+
+    #[test]
+    fn decode_failure() {
+        for (_, encoded) in ATTRS_VALID {
+            for i in 0..encoded.len() - 1 {
+                assert_eq!(fail_decode::<Attrs>(&encoded[..i]), Error::NotEnoughData);
+            }
+        }
+
+        assert_eq!(
+            fail_decode::<Attrs>(b"\0\0\x01\0"),
+            Error::Custom("invalid attr".to_string())
+        );
     }
 }

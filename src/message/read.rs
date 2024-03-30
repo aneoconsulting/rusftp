@@ -24,3 +24,39 @@ pub struct Read {
     pub offset: u64,
     pub length: u32,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Error, Handle,
+    };
+
+    use super::Read;
+    use bytes::Bytes;
+
+    const FSETSTAT_VALID: &[u8] =
+        b"\0\0\0\x06handle\xfe\xdc\xba\x98\x76\x54\x32\x10\xfd\xb9\x75\x31";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            Read {
+                handle: Handle(Bytes::from_static(b"handle")),
+                offset: 0xfedcba9876543210,
+                length: 0xfdb97531,
+            },
+            FSETSTAT_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..FSETSTAT_VALID.len() {
+            assert_eq!(
+                fail_decode::<Read>(&FSETSTAT_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

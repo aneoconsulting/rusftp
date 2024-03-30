@@ -23,3 +23,37 @@ pub struct Rename {
     pub old_path: Path,
     pub new_path: Path,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Error, Path,
+    };
+
+    use super::Rename;
+    use bytes::Bytes;
+
+    const RENAME_VALID: &[u8] = b"\0\0\0\x03old\0\0\0\x03new";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            Rename {
+                old_path: Path(Bytes::from_static(b"old")),
+                new_path: Path(Bytes::from_static(b"new")),
+            },
+            RENAME_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..RENAME_VALID.len() {
+            assert_eq!(
+                fail_decode::<Rename>(&RENAME_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

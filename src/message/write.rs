@@ -24,3 +24,38 @@ pub struct Write {
     pub offset: u64,
     pub data: Data,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Data, Error, Handle,
+    };
+
+    use super::Write;
+    use bytes::Bytes;
+
+    const WRITE_VALID: &[u8] = b"\0\0\0\x06handle\xfe\xdc\xba\x98\x76\x54\x32\x10\0\0\0\x04data";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            Write {
+                handle: Handle(Bytes::from_static(b"handle")),
+                offset: 0xfedcba9876543210,
+                data: Data(Bytes::from_static(b"data")),
+            },
+            WRITE_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..WRITE_VALID.len() {
+            assert_eq!(
+                fail_decode::<Write>(&WRITE_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

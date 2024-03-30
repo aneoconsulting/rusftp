@@ -52,6 +52,9 @@ mod symlink;
 mod version;
 mod write;
 
+#[cfg(test)]
+mod test_utils;
+
 pub use attrs::{Attrs, Owner, Permisions, Time};
 pub use close::Close;
 pub use data::Data;

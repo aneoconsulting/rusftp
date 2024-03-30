@@ -23,3 +23,40 @@ pub struct MkDir {
     pub path: Path,
     pub attrs: Attrs,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Attrs, Error, Path,
+    };
+
+    use super::MkDir;
+    use bytes::Bytes;
+
+    const MKDIR_VALID: &[u8] = b"\0\0\0\x04path\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            MkDir {
+                path: Path(Bytes::from_static(b"path")),
+                attrs: Attrs {
+                    size: Some(0xa7735),
+                    ..Default::default()
+                },
+            },
+            MKDIR_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..MKDIR_VALID.len() {
+            assert_eq!(
+                fail_decode::<MkDir>(&MKDIR_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}

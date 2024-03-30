@@ -23,3 +23,40 @@ pub struct FSetStat {
     pub handle: Handle,
     pub attrs: Attrs,
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        message::test_utils::{encode_decode, fail_decode},
+        Attrs, Error, Handle,
+    };
+
+    use super::FSetStat;
+    use bytes::Bytes;
+
+    const FSETSTAT_VALID: &[u8] = b"\0\0\0\x06handle\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+
+    #[test]
+    fn encode_success() {
+        encode_decode(
+            FSetStat {
+                handle: Handle(Bytes::from_static(b"handle")),
+                attrs: Attrs {
+                    size: Some(0xa7735),
+                    ..Default::default()
+                },
+            },
+            FSETSTAT_VALID,
+        );
+    }
+
+    #[test]
+    fn decode_failure() {
+        for i in 0..FSETSTAT_VALID.len() {
+            assert_eq!(
+                fail_decode::<FSetStat>(&FSETSTAT_VALID[..i]),
+                Error::NotEnoughData
+            );
+        }
+    }
+}
