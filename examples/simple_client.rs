@@ -29,5 +29,6 @@ pub async fn main() {
     let cwd = sftp.stat(rusftp::Stat { path: ".".into() }).await.unwrap();
     println!("CWD: {:?}", cwd);
 
-    sftp.realpath(RealPath { path: ".".into() }).await.unwrap();
+    let realpath = sftp.realpath(RealPath { path: ".".into() }).await.unwrap();
+    println!("RealPath: {:?}", realpath);
 }
