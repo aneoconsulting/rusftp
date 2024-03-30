@@ -23,6 +23,7 @@ use russh::client::Msg;
 use russh::Channel;
 use russh::ChannelMsg;
 use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 
 use crate::StatusCode;
 use crate::{message, Message};
@@ -52,7 +53,12 @@ use crate::{message, Message};
 /// # }
 /// ```
 pub struct SftpClient {
+    inner: Option<SftpClientInner>,
+}
+
+struct SftpClientInner {
     commands: mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>,
+    request_processor: JoinHandle<()>,
 }
 
 macro_rules! command {
@@ -163,7 +169,7 @@ impl SftpClient {
 
         let (tx, mut rx) = mpsc::unbounded_channel::<(Message, oneshot::Sender<Message>)>();
 
-        tokio::spawn(async move {
+        let request_processor = tokio::spawn(async move {
             let mut onflight = HashMap::<u32, oneshot::Sender<Message>>::new();
             let mut id = 0u32;
 
@@ -231,29 +237,40 @@ impl SftpClient {
             }
         });
 
-        Ok(Self { commands: tx })
+        Ok(Self {
+            inner: Some(SftpClientInner {
+                commands: tx,
+                request_processor,
+            }),
+        })
     }
 
     pub fn send(&self, request: Message) -> impl Future<Output = Message> + Send + 'static {
         let (tx, rx) = oneshot::channel();
 
-        let is_err = self.commands.send((request, tx)).is_err();
+        let sent = match &self.inner {
+            Some(inner) => inner
+                .commands
+                .send((request, tx))
+                .map_err(|err| StatusCode::Failure.to_message(err.to_string().into())),
+            None => Err(StatusCode::Failure.to_message("SFTP client has been closed".into())),
+        };
 
         async move {
-            if is_err {
-                message::StatusCode::Failure
-                    .to_message("Could not send request to SFTP client".into())
-            } else {
-                rx.await.unwrap_or(
-                    message::StatusCode::Failure
-                        .to_message("Could not get reply from SFTP client".into()),
-                )
+            match sent {
+                Ok(_) => rx.await.unwrap_or(
+                    StatusCode::Failure.to_message("Could not get reply from SFTP client".into()),
+                ),
+                Err(err) => err,
             }
         }
     }
 
-    pub fn stop(&self) -> impl Future<Output = ()> + Send + '_ {
-        self.commands.closed()
+    pub async fn stop(&mut self) {
+        if let Some(inner) = std::mem::take(&mut self.inner) {
+            std::mem::drop(inner.commands);
+            _ = inner.request_processor.await;
+        }
     }
 
     command!(open: Open -> Handle);
@@ -274,6 +291,12 @@ impl SftpClient {
     command!(rename: Rename);
     command!(readlink: ReadLink -> Name);
     command!(symlink: Symlink);
+}
+
+impl Drop for SftpClient {
+    fn drop(&mut self) {
+        futures::executor::block_on(self.stop());
+    }
 }
 
 #[async_trait]
