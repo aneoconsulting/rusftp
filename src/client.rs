@@ -47,7 +47,7 @@ use crate::{message, Message};
 /// ssh.authenticate_password("user", "pass").await.unwrap();
 ///
 /// let sftp = rusftp::SftpClient::new(&ssh).await.unwrap();
-/// let stat = sftp.stat(rusftp::Stat{path: ".".into()}).await.unwrap();
+/// let stat = sftp.send(rusftp::Stat{path: ".".into()}).await.unwrap();
 /// println!("stat '.': {stat:?}");
 /// # Ok(())
 /// # }
@@ -59,36 +59,6 @@ pub struct SftpClient {
 struct SftpClientInner {
     commands: mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>,
     request_processor: JoinHandle<()>,
-}
-
-macro_rules! command {
-    ($name:ident: $input:ident) => {
-        pub fn $name(&self, request: message::$input) -> impl Future<Output = Result<(), message::Status>> + Send + 'static {
-            let future = self.send(request.into());
-            async move {
-                let response = future.await;
-                match response {
-                    Message::Status(status) => status.to_result(()),
-                    _ => Err(message::StatusCode::BadMessage
-                        .to_status("Expected a status".into())),
-                }
-            }
-        }
-    };
-    ($name:ident: $input:ident -> $output:ident) => {
-        pub fn $name(&self, request: message::$input) -> impl Future<Output = Result<message::$output, message::Status>> + Send + 'static {
-            let future = self.send(request.into());
-            async move {
-                let response = future.await;
-                match response {
-                    Message::$output(response) => Ok(response),
-                    Message::Status(status) => Err(status),
-                    _ => Err(message::StatusCode::BadMessage
-                        .to_status(std::stringify!(Expected a $output or a status).into())),
-                }
-            }
-        }
-    };
 }
 
 impl SftpClient {
@@ -245,24 +215,39 @@ impl SftpClient {
         })
     }
 
-    pub fn send(&self, request: Message) -> impl Future<Output = Message> + Send + 'static {
-        let (tx, rx) = oneshot::channel();
+    pub fn send<R: SftpSend>(
+        &self,
+        request: R,
+    ) -> impl Future<Output = R::Output> + Send + 'static {
+        let sent = if let Some(inner) = &self.inner {
+            let msg = request.to_message();
 
-        let sent = match &self.inner {
-            Some(inner) => inner
-                .commands
-                .send((request, tx))
-                .map_err(|err| StatusCode::Failure.to_message(err.to_string().into())),
-            None => Err(StatusCode::Failure.to_message("SFTP client has been closed".into())),
+            if let Message::Status(status) = msg {
+                if status.is_ok() {
+                    Err(StatusCode::BadMessage
+                        .to_message("Tried to send an OK status message to the server".into()))
+                } else {
+                    Err(Message::Status(status))
+                }
+            } else {
+                let (tx, rx) = oneshot::channel();
+                match inner.commands.send((msg, tx)) {
+                    Ok(()) => Ok(rx),
+                    Err(err) => Err(StatusCode::Failure.to_message(err.to_string().into())),
+                }
+            }
+        } else {
+            Err(StatusCode::Failure.to_message("SFTP client has been closed".into()))
         };
 
         async move {
-            match sent {
-                Ok(_) => rx.await.unwrap_or(
+            let msg = match sent {
+                Ok(rx) => rx.await.unwrap_or(
                     StatusCode::Failure.to_message("Could not get reply from SFTP client".into()),
                 ),
                 Err(err) => err,
-            }
+            };
+            R::from_message(msg)
         }
     }
 
@@ -272,25 +257,6 @@ impl SftpClient {
             _ = inner.request_processor.await;
         }
     }
-
-    command!(open: Open -> Handle);
-    command!(close: Close);
-    command!(read: Read -> Data);
-    command!(write: Write);
-    command!(lstat: LStat -> Attrs);
-    command!(fstat: FStat -> Attrs);
-    command!(setstat: SetStat);
-    command!(fsetstat: FSetStat);
-    command!(opendir: OpenDir -> Handle);
-    command!(readdir: ReadDir -> Name);
-    command!(remove: Remove);
-    command!(mkdir: MkDir);
-    command!(rmdir: RmDir);
-    command!(realpath: RealPath -> Name);
-    command!(stat: Stat -> Attrs);
-    command!(rename: Rename);
-    command!(readlink: ReadLink -> Name);
-    command!(symlink: Symlink);
 }
 
 impl Drop for SftpClient {
@@ -328,3 +294,78 @@ impl<H: russh::client::Handler> ToSftpChannel for russh::client::Handle<H> {
         (&self).to_sftp_channel().await
     }
 }
+
+pub trait SftpSend {
+    type Output;
+    fn to_message(self) -> Message;
+    fn from_message(msg: Message) -> Self::Output;
+}
+
+impl SftpSend for Message {
+    type Output = Message;
+
+    fn to_message(self) -> Message {
+        self
+    }
+
+    fn from_message(msg: Message) -> Self::Output {
+        msg
+    }
+}
+
+macro_rules! send_impl {
+    ($input:ident) => {
+        impl SftpSend for message::$input {
+            type Output = Result<(), message::Status>;
+
+            fn to_message(self) -> Message {
+                self.into()
+            }
+
+            fn from_message(msg: Message) -> Self::Output {
+                match msg {
+                    Message::Status(status) => status.to_result(()),
+                    _ => Err(message::StatusCode::BadMessage
+                        .to_status("Expected a status".into())),
+                }
+            }
+        }
+    };
+    ($input:ident -> $output:ident) => {
+        impl SftpSend for message::$input {
+            type Output = Result<message::$output, message::Status>;
+
+            fn to_message(self) -> Message {
+                self.into()
+            }
+
+            fn from_message(msg: Message) -> Self::Output {
+                match msg {
+                    Message::$output(response) => Ok(response),
+                    Message::Status(status) => Err(status),
+                    _ => Err(message::StatusCode::BadMessage
+                        .to_status(std::stringify!(Expected a $output or a status).into())),
+                }
+            }
+        }
+    };
+}
+
+send_impl!(Open -> Handle);
+send_impl!(Close);
+send_impl!(Read -> Data);
+send_impl!(Write);
+send_impl!(LStat -> Attrs);
+send_impl!(FStat -> Attrs);
+send_impl!(SetStat);
+send_impl!(FSetStat);
+send_impl!(OpenDir -> Handle);
+send_impl!(ReadDir -> Name);
+send_impl!(Remove);
+send_impl!(MkDir);
+send_impl!(RmDir);
+send_impl!(RealPath -> Name);
+send_impl!(Stat -> Attrs);
+send_impl!(Rename);
+send_impl!(ReadLink -> Name);
+send_impl!(Symlink);

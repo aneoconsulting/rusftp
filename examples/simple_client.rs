@@ -46,9 +46,9 @@ pub async fn main() {
     ssh.authenticate_password("user", "pass").await.unwrap();
     let sftp = rusftp::SftpClient::new(ssh).await.unwrap();
 
-    let cwd = sftp.stat(rusftp::Stat { path: ".".into() }).await.unwrap();
+    let cwd = sftp.send(rusftp::Stat { path: ".".into() }).await.unwrap();
     println!("CWD: {:?}", cwd);
 
-    let realpath = sftp.realpath(RealPath { path: ".".into() }).await.unwrap();
+    let realpath = sftp.send(RealPath { path: ".".into() }).await.unwrap();
     println!("RealPath: {:?}", realpath);
 }
