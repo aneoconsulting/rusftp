@@ -16,7 +16,7 @@
 
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct Attrs {
     pub size: Option<u64>,
     pub owner: Option<Owner>,

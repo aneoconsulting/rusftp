@@ -17,6 +17,7 @@ futures = "0.3"
 russh = "0.43"
 serde = "1.0"
 tokio = "1.36"
+bitflags = "2.5"
 
 [dev-dependencies]
 russh-keys = "0.43"

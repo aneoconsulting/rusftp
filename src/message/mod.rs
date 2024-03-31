@@ -67,7 +67,7 @@ pub use init::Init;
 pub use lstat::LStat;
 pub use mkdir::MkDir;
 pub use name::{Name, NameEntry};
-pub use open::{pflags, Open};
+pub use open::{PFlags, Open};
 pub use opendir::OpenDir;
 pub use path::Path;
 pub use read::Read;

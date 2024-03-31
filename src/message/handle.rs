@@ -19,7 +19,7 @@ use std::ops::Deref;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Handle(pub Bytes);
 
 impl<T: Into<Bytes>> From<T> for Handle {

@@ -18,20 +18,45 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Open {
     pub filename: Path,
-    pub pflags: u32,
+    pub pflags: PFlags,
     pub attrs: Attrs,
 }
 
-pub mod pflags {
-    pub const READ: u32 = 0x00000001;
-    pub const WRITE: u32 = 0x00000002;
-    pub const APPEND: u32 = 0x00000004;
-    pub const CREATE: u32 = 0x00000008;
-    pub const TRUNCATE: u32 = 0x00000010;
-    pub const EXCLUDE: u32 = 0x00000020;
+bitflags::bitflags! {
+    #[repr(transparent)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct PFlags: u32 {
+        const READ = 0x00000001;
+        const WRITE = 0x00000002;
+        const APPEND = 0x00000004;
+        const CREATE = 0x00000008;
+        const TRUNCATE = 0x00000010;
+        const EXCLUDE = 0x00000020;
+    }
+}
+
+impl Serialize for PFlags {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.bits().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for PFlags {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match PFlags::from_bits(Deserialize::deserialize(deserializer)?) {
+            Some(pflags) => Ok(pflags),
+            None => Err(serde::de::Error::custom("invalid pflags")),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -41,17 +66,17 @@ mod test {
         Attrs, Error, Path,
     };
 
-    use super::Open;
+    use super::{Open, PFlags};
     use bytes::Bytes;
 
-    const OPEN_VALID: &[u8] = b"\0\0\0\x08filename\x56\xfe\x78\x21\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+    const OPEN_VALID: &[u8] = b"\0\0\0\x08filename\0\0\0\x09\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
 
     #[test]
     fn encode_success() {
         encode_decode(
             Open {
                 filename: Path(Bytes::from_static(b"filename")),
-                pflags: 0x56fe7821,
+                pflags: PFlags::READ | PFlags::CREATE,
                 attrs: Attrs {
                     size: Some(0xa7735),
                     ..Default::default()

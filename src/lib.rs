@@ -21,7 +21,7 @@ mod message;
 pub mod decoder;
 pub mod encoder;
 
-pub use client::SftpClient;
+pub use client::*;
 pub use error::Error;
 pub use message::*;
 pub use russh;

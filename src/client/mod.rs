@@ -18,15 +18,20 @@ use std::collections::HashMap;
 use std::future::Future;
 
 use async_trait::async_trait;
-use bytes::Buf;
-use russh::client::Msg;
-use russh::Channel;
-use russh::ChannelMsg;
+use bytes::{Buf, Bytes};
+use russh::{client::Msg, Channel, ChannelMsg};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
-use crate::StatusCode;
-use crate::{message, Message};
+use crate::{
+    message, Attrs, Close, Data, Extended, FSetStat, FStat, Handle, LStat, Message, MkDir, Open,
+    OpenDir, PFlags, Path, Read, ReadLink, RealPath, Remove, Rename, RmDir, SetStat, Stat, Status,
+    StatusCode, Symlink, Write,
+};
+
+mod file;
+
+pub use file::{File, FILE_CLOSED};
 
 /// SFTP client
 ///
@@ -61,7 +66,12 @@ struct SftpClientInner {
     request_processor: JoinHandle<()>,
 }
 
+pub static SFTP_CLIENT_STOPPED: SftpClient = SftpClient::new_stopped();
+
 impl SftpClient {
+    pub const fn new_stopped() -> Self {
+        Self { inner: None }
+    }
     pub async fn new<T: ToSftpChannel>(ssh: T) -> Result<Self, std::io::Error> {
         Self::with_channel(ssh.to_sftp_channel().await?).await
     }
@@ -218,7 +228,7 @@ impl SftpClient {
     pub fn send<R: SftpSend>(
         &self,
         request: R,
-    ) -> impl Future<Output = R::Output> + Send + 'static {
+    ) -> impl Future<Output = R::Output> + Send + Sync + 'static {
         let sent = if let Some(inner) = &self.inner {
             let msg = request.to_message();
 
@@ -237,7 +247,7 @@ impl SftpClient {
                 }
             }
         } else {
-            Err(StatusCode::Failure.to_message("SFTP client has been closed".into()))
+            Err(StatusCode::Failure.to_message("SFTP client has been stopped".into()))
         };
 
         async move {
@@ -257,11 +267,253 @@ impl SftpClient {
             _ = inner.request_processor.await;
         }
     }
+
+    pub fn is_stopped(&self) -> bool {
+        self.inner.is_none()
+    }
+
+    pub fn close<H: Into<Handle>>(
+        &self,
+        handle: H,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(Close {
+            handle: handle.into(),
+        })
+    }
+
+    pub fn extended<R: Into<Bytes>, D: Into<Bytes>>(
+        &self,
+        request: R,
+        data: D,
+    ) -> impl Future<Output = Result<Bytes, Status>> + Send + Sync + 'static {
+        let request = self.send(Extended {
+            request: request.into(),
+            data: data.into(),
+        });
+        async move { Ok(request.await?.data) }
+    }
+
+    pub fn fsetstat<H: Into<Handle>, A: Into<Attrs>>(
+        &self,
+        handle: H,
+        attrs: A,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(FSetStat {
+            handle: handle.into(),
+            attrs: attrs.into(),
+        })
+    }
+
+    pub fn fstat<H: Into<Handle>>(
+        &self,
+        handle: H,
+    ) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
+        self.send(FStat {
+            handle: handle.into(),
+        })
+    }
+
+    pub fn lstat<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
+        self.send(LStat { path: path.into() })
+    }
+
+    pub fn mkdir<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.mkdir_with_attrs(path, Attrs::default())
+    }
+
+    pub fn mkdir_with_attrs<P: Into<Path>, A: Into<Attrs>>(
+        &self,
+        path: P,
+        attrs: A,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(MkDir {
+            path: path.into(),
+            attrs: attrs.into(),
+        })
+    }
+
+    pub fn open_handle<P: Into<Path>, F: Into<PFlags>, A: Into<Attrs>>(
+        &self,
+        filename: P,
+        pflags: F,
+        attrs: A,
+    ) -> impl Future<Output = Result<Handle, Status>> + Send + Sync + 'static {
+        self.send(Open {
+            filename: filename.into(),
+            pflags: pflags.into(),
+            attrs: attrs.into(),
+        })
+    }
+
+    pub fn open_with_flags_attrs<P: Into<Path>, F: Into<PFlags>, A: Into<Attrs>>(
+        &self,
+        filename: P,
+        pflags: F,
+        attrs: A,
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+        let request = self.open_handle(filename, pflags, attrs);
+
+        async move { Ok(File::new(self, request.await?)) }
+    }
+
+    pub fn open_with_flags<P: Into<Path>, F: Into<PFlags>>(
+        &self,
+        filename: P,
+        pflags: F,
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+        self.open_with_flags_attrs(filename, pflags, Attrs::default())
+    }
+
+    pub fn open_with_attrs<P: Into<Path>, A: Into<Attrs>>(
+        &self,
+        filename: P,
+        attrs: A,
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+        self.open_with_flags_attrs(filename, PFlags::default(), attrs)
+    }
+
+    pub fn open<P: Into<Path>>(
+        &self,
+        filename: P,
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+        self.open_with_flags_attrs(filename, PFlags::default(), Attrs::default())
+    }
+
+    pub fn read<H: Into<Handle>>(
+        &self,
+        handle: H,
+        offset: u64,
+        length: u32,
+    ) -> impl Future<Output = Result<Bytes, Status>> + Send + Sync + 'static {
+        let request = self.send(Read {
+            handle: handle.into(),
+            offset,
+            length,
+        });
+
+        async move { Ok(request.await?.0) }
+    }
+
+    pub fn readdir_handle<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Handle, Status>> + Send + Sync + 'static {
+        self.send(OpenDir { path: path.into() })
+    }
+
+    pub fn readlink<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Path, Status>> + Send + Sync + 'static {
+        let request = self.send(ReadLink { path: path.into() });
+
+        async move {
+            match request.await?.as_mut() {
+                [] => Err(StatusCode::NoSuchFile.to_status("No entry".into())),
+                [entry] => Ok(std::mem::take(entry).filename),
+                _ => Err(StatusCode::BadMessage.to_status("Multiple entries".into())),
+            }
+        }
+    }
+
+    pub fn realpath<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Path, Status>> + Send + Sync + 'static {
+        let request = self.send(RealPath { path: path.into() });
+
+        async move {
+            match request.await?.as_mut() {
+                [] => Err(StatusCode::NoSuchFile.to_status("No entry".into())),
+                [entry] => Ok(std::mem::take(entry).filename),
+                _ => Err(StatusCode::BadMessage.to_status("Multiple entries".into())),
+            }
+        }
+    }
+
+    pub fn remove<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(Remove { path: path.into() })
+    }
+
+    pub fn rename<O: Into<Path>, N: Into<Path>>(
+        &self,
+        old_path: O,
+        new_path: N,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(Rename {
+            old_path: old_path.into(),
+            new_path: new_path.into(),
+        })
+    }
+
+    pub fn rmdir<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(RmDir { path: path.into() })
+    }
+
+    pub fn setstat<P: Into<Path>, A: Into<Attrs>>(
+        &self,
+        path: P,
+        attrs: A,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(SetStat {
+            path: path.into(),
+            attrs: attrs.into(),
+        })
+    }
+
+    pub fn stat<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
+        self.send(Stat { path: path.into() })
+    }
+
+    pub fn symlink<L: Into<Path>, T: Into<Path>>(
+        &self,
+        link_path: L,
+        target_path: T,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(Symlink {
+            link_path: link_path.into(),
+            target_path: target_path.into(),
+        })
+    }
+
+    pub fn write<H: Into<Handle>, D: Into<Bytes>>(
+        &self,
+        handle: H,
+        offset: u64,
+        data: D,
+    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+        self.send(Write {
+            handle: handle.into(),
+            offset,
+            data: Data(data.into()),
+        })
+    }
 }
 
 impl Drop for SftpClient {
     fn drop(&mut self) {
         futures::executor::block_on(self.stop());
+    }
+}
+
+impl std::fmt::Debug for SftpClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SftpClient")
     }
 }
 
@@ -369,3 +621,4 @@ send_impl!(Stat -> Attrs);
 send_impl!(Rename);
 send_impl!(ReadLink -> Name);
 send_impl!(Symlink);
+send_impl!(Extended -> ExtendedReply);
