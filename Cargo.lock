@@ -1019,6 +1019,7 @@ dependencies = [
  "russh",
  "russh-keys",
  "serde",
+ "thiserror",
  "tokio",
  "tokio-test",
 ]

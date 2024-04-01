@@ -200,7 +200,7 @@ impl SftpClient {
                                 let id = buf.get_u32();
                                 if let Some(tx) = onflight.remove(&id) {
                                     _ = tx.send(Message::Status(crate::Status {
-                                        code: StatusCode::BadMessage as u32,
+                                        code: StatusCode::BadMessage,
                                         error: err.to_string().into(),
                                         language: "en".into(),
                                     }));

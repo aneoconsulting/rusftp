@@ -157,9 +157,7 @@ impl AsyncRead for File<'_> {
                 self.pending = PendingOperation::Read(Box::pin(async move {
                     match read.await {
                         Ok(data) => Ok(data.0),
-                        Err(status) if status.code == StatusCode::Eof as u32 => {
-                            Ok(Bytes::default())
-                        }
+                        Err(status) if status.code == StatusCode::Eof => Ok(Bytes::default()),
                         Err(status) => Err(std::io::Error::from(status)),
                     }
                 }));

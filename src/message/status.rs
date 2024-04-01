@@ -16,37 +16,48 @@
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::Message;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Error)]
 #[repr(u32)]
 #[non_exhaustive]
 pub enum StatusCode {
+    #[error("Ok")]
+    #[default]
     Ok = 0,
+    #[error("Eof")]
     Eof = 1,
+    #[error("NoSuchFile")]
     NoSuchFile = 2,
+    #[error("PermissionDenied")]
     PermissionDenied = 3,
+    #[error("Failure")]
     Failure = 4,
+    #[error("BadMessage")]
     BadMessage = 5,
+    #[error("NoConnection")]
     NoConnection = 6,
+    #[error("ConnectionLost")]
     ConnectionLost = 7,
+    #[error("OpUnsupported")]
     OpUnsupported = 8,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Status {
-    pub code: u32,
+    pub code: StatusCode,
     pub error: Bytes,
     pub language: Bytes,
 }
 
 impl Status {
     pub fn is_ok(&self) -> bool {
-        self.code == StatusCode::Ok as u32
+        self.code == StatusCode::Ok
     }
     pub fn is_err(&self) -> bool {
-        self.code != StatusCode::Ok as u32
+        self.code != StatusCode::Ok
     }
 
     pub fn to_result<T>(self, value: T) -> Result<T, Self> {
@@ -67,7 +78,7 @@ impl StatusCode {
         };
 
         Status {
-            code: self as u32,
+            code: self,
             error: msg,
             language: "en".into(),
         }
@@ -75,23 +86,6 @@ impl StatusCode {
 
     pub fn to_message(self, msg: Bytes) -> Message {
         Message::Status(self.to_status(msg))
-    }
-}
-
-impl std::fmt::Display for StatusCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            StatusCode::Ok => "Ok",
-            StatusCode::Eof => "EOF",
-            StatusCode::NoSuchFile => "No such file",
-            StatusCode::PermissionDenied => "Permission Denied",
-            StatusCode::Failure => "Failure",
-            StatusCode::BadMessage => "Bad message",
-            StatusCode::NoConnection => "No connection",
-            StatusCode::ConnectionLost => "Connection lost",
-            StatusCode::OpUnsupported => "Operation not supported",
-        };
-        f.write_str(s)
     }
 }
 
@@ -159,7 +153,7 @@ impl From<std::io::ErrorKind> for StatusCode {
 impl From<std::io::Error> for Status {
     fn from(value: std::io::Error) -> Self {
         Self {
-            code: StatusCode::from(value.kind()) as u32,
+            code: StatusCode::from(value.kind()),
             error: value.to_string().into(),
             language: "en".into(),
         }
@@ -177,7 +171,7 @@ impl From<russh::Error> for Status {
             _ => StatusCode::Failure,
         };
         Self {
-            code: status_code as u32,
+            code: status_code,
             error: value.to_string().into(),
             language: "en".into(),
         }
@@ -187,7 +181,7 @@ impl From<russh::Error> for Status {
 impl From<crate::WireFormatError> for Status {
     fn from(error: crate::WireFormatError) -> Self {
         Self {
-            code: StatusCode::BadMessage as u32,
+            code: StatusCode::BadMessage,
             error: error.to_string().into(),
             language: "en".into(),
         }
@@ -196,17 +190,16 @@ impl From<crate::WireFormatError> for Status {
 
 impl From<Status> for std::io::Error {
     fn from(value: Status) -> Self {
-        let kind = match StatusCode::try_from(value.code) {
-            Ok(StatusCode::Ok) => std::io::ErrorKind::Other,
-            Ok(StatusCode::Eof) => std::io::ErrorKind::UnexpectedEof,
-            Ok(StatusCode::NoSuchFile) => std::io::ErrorKind::NotFound,
-            Ok(StatusCode::PermissionDenied) => std::io::ErrorKind::PermissionDenied,
-            Ok(StatusCode::Failure) => std::io::ErrorKind::Other,
-            Ok(StatusCode::BadMessage) => std::io::ErrorKind::InvalidData,
-            Ok(StatusCode::NoConnection) => std::io::ErrorKind::Other,
-            Ok(StatusCode::ConnectionLost) => std::io::ErrorKind::Other,
-            Ok(StatusCode::OpUnsupported) => std::io::ErrorKind::Unsupported,
-            Err(_) => std::io::ErrorKind::Other,
+        let kind = match value.code {
+            StatusCode::Ok => std::io::ErrorKind::Other,
+            StatusCode::Eof => std::io::ErrorKind::UnexpectedEof,
+            StatusCode::NoSuchFile => std::io::ErrorKind::NotFound,
+            StatusCode::PermissionDenied => std::io::ErrorKind::PermissionDenied,
+            StatusCode::Failure => std::io::ErrorKind::Other,
+            StatusCode::BadMessage => std::io::ErrorKind::InvalidData,
+            StatusCode::NoConnection => std::io::ErrorKind::Other,
+            StatusCode::ConnectionLost => std::io::ErrorKind::Other,
+            StatusCode::OpUnsupported => std::io::ErrorKind::Unsupported,
         };
 
         Self::new(kind, value)
@@ -246,7 +239,7 @@ mod test {
 
         encode_decode(
             Status {
-                code: 1,
+                code: StatusCode::Eof,
                 error: Bytes::from_static(b"eof"),
                 language: Bytes::from_static(b"en"),
             },
