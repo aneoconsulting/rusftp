@@ -184,8 +184,8 @@ impl From<russh::Error> for Status {
     }
 }
 
-impl From<crate::Error> for Status {
-    fn from(error: crate::Error) -> Self {
+impl From<crate::WireFormatError> for Status {
+    fn from(error: crate::WireFormatError) -> Self {
         Self {
             code: StatusCode::BadMessage as u32,
             error: error.to_string().into(),
@@ -221,7 +221,7 @@ mod test {
 
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error,
+        WireFormatError,
     };
 
     use super::{Status, StatusCode};
@@ -259,7 +259,7 @@ mod test {
         for i in 0..STATUS_VALID.len() {
             assert_eq!(
                 fail_decode::<Status>(&STATUS_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

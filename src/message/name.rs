@@ -124,7 +124,7 @@ impl BorrowMut<[NameEntry]> for Name {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
     use super::NameEntry;
@@ -153,7 +153,7 @@ mod test {
         for i in 0..NAME_VALID.len() {
             assert_eq!(
                 fail_decode::<NameEntry>(&NAME_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

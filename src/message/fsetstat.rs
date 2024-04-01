@@ -28,7 +28,7 @@ pub struct FSetStat {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Handle,
+        Attrs, Handle, WireFormatError,
     };
 
     use super::FSetStat;
@@ -55,7 +55,7 @@ mod test {
         for i in 0..FSETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<FSetStat>(&FSETSTAT_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

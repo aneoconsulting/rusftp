@@ -1,7 +1,9 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 
-use crate::{decoder::SftpDecoder, encoder::SftpEncoder, Attrs, Error, Owner, Permisions, Time};
+use crate::{
+    decoder::SftpDecoder, encoder::SftpEncoder, Attrs, Owner, Permisions, Time, WireFormatError,
+};
 
 pub(crate) fn encode_decode<T>(value: T, expected: &[u8])
 where
@@ -21,7 +23,7 @@ where
     assert_eq!(input, output);
 }
 
-pub(crate) fn fail_decode<T>(encoded: &[u8]) -> Error
+pub(crate) fn fail_decode<T>(encoded: &[u8]) -> WireFormatError
 where
     T: DeserializeOwned + Debug,
 {
@@ -49,9 +51,9 @@ pub(crate) const BYTES_VALID: [(&[u8], &[u8]); 8] = [
     ),
 ];
 
-pub(crate) const BYTES_INVALID: [(&[u8], Error); 2] = [
-    (b"" as &[u8], Error::NotEnoughData),
-    (b"\0\0\0\x01", Error::NotEnoughData),
+pub(crate) const BYTES_INVALID: [(&[u8], WireFormatError); 2] = [
+    (b"" as &[u8], WireFormatError::NotEnoughData),
+    (b"\0\0\0\x01", WireFormatError::NotEnoughData),
 ];
 
 //   Permisions::OW

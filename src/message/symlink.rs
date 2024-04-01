@@ -28,7 +28,7 @@ pub struct Symlink {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error, Path,
+        Path, WireFormatError,
     };
 
     use super::Symlink;
@@ -52,7 +52,7 @@ mod test {
         for i in 0..SYMLINK_VALID.len() {
             assert_eq!(
                 fail_decode::<Symlink>(&SYMLINK_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

@@ -30,7 +30,7 @@ pub struct Version {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error,
+        WireFormatError,
     };
 
     use super::Version;
@@ -68,7 +68,7 @@ mod test {
         for i in 5..VERSION_VALID.len() {
             assert_eq!(
                 fail_decode::<Version>(&VERSION_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

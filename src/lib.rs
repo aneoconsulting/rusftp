@@ -22,6 +22,6 @@ pub mod decoder;
 pub mod encoder;
 
 pub use client::*;
-pub use error::Error;
+pub use error::WireFormatError;
 pub use message::*;
 pub use russh;

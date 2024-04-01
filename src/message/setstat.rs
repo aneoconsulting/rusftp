@@ -28,7 +28,7 @@ pub struct SetStat {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
     use super::SetStat;
@@ -55,7 +55,7 @@ mod test {
         for i in 0..SETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<SetStat>(&SETSTAT_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

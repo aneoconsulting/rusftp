@@ -29,7 +29,7 @@ pub struct Read {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error, Handle,
+        Handle, WireFormatError,
     };
 
     use super::Read;
@@ -55,7 +55,7 @@ mod test {
         for i in 0..FSETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<Read>(&FSETSTAT_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

@@ -21,7 +21,7 @@ use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
 use crate::decoder::SftpDecoder;
 use crate::encoder::SftpEncoder;
-use crate::Error;
+use crate::WireFormatError;
 
 mod attrs;
 mod close;
@@ -316,7 +316,7 @@ impl Message {
     pub fn code(&self) -> u8 {
         self.kind().code()
     }
-    pub fn encode(&self, id: u32) -> Result<Bytes, Error> {
+    pub fn encode(&self, id: u32) -> Result<Bytes, WireFormatError> {
         let mut encoder = SftpEncoder::new(Vec::with_capacity(16));
 
         // Reserve space for frame length
@@ -336,7 +336,7 @@ impl Message {
         Ok(encoder.buf.into())
     }
 
-    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), Error> {
+    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), WireFormatError> {
         let frame_length = buf.get_u32() as usize;
 
         // Limit the read to this very frame
@@ -348,8 +348,8 @@ impl Message {
     }
 }
 
-impl From<Error> for Message {
-    fn from(value: Error) -> Self {
+impl From<WireFormatError> for Message {
+    fn from(value: WireFormatError) -> Self {
         Self::Status(value.into())
     }
 }

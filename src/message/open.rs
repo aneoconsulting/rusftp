@@ -42,7 +42,7 @@ bitflags::bitflags! {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
     use super::{Open, PFlags};
@@ -68,7 +68,10 @@ mod test {
     #[test]
     fn decode_failure() {
         for i in 0..OPEN_VALID.len() {
-            assert_eq!(fail_decode::<Open>(&OPEN_VALID[..i]), Error::NotEnoughData);
+            assert_eq!(
+                fail_decode::<Open>(&OPEN_VALID[..i]),
+                WireFormatError::NotEnoughData
+            );
         }
     }
 }

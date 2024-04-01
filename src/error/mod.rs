@@ -15,4 +15,4 @@
 // limitations under the License.
 
 mod wire_format;
-pub use wire_format::Error;
+pub use wire_format::WireFormatError;

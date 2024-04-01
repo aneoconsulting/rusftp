@@ -15,25 +15,25 @@
 // limitations under the License.
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Error {
+pub enum WireFormatError {
     NotEnoughData,
     Unsupported,
     InvalidChar,
     Custom(String),
 }
 
-impl std::fmt::Display for Error {
+impl std::fmt::Display for WireFormatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::NotEnoughData => f.write_str("Decode Error: Not enough data"),
-            Error::Unsupported => f.write_str("Decode Error: Unsupported"),
-            Error::InvalidChar => f.write_str("Decode Error: Invalid character"),
-            Error::Custom(msg) => write!(f, "Decode Error: {msg}"),
+            WireFormatError::NotEnoughData => f.write_str("Decode Error: Not enough data"),
+            WireFormatError::Unsupported => f.write_str("Decode Error: Unsupported"),
+            WireFormatError::InvalidChar => f.write_str("Decode Error: Invalid character"),
+            WireFormatError::Custom(msg) => write!(f, "Decode Error: {msg}"),
         }
     }
 }
 
-impl std::error::Error for Error {
+impl std::error::Error for WireFormatError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
     }
@@ -47,7 +47,7 @@ impl std::error::Error for Error {
     }
 }
 
-impl serde::de::Error for Error {
+impl serde::de::Error for WireFormatError {
     fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,
@@ -56,7 +56,7 @@ impl serde::de::Error for Error {
     }
 }
 
-impl serde::ser::Error for Error {
+impl serde::ser::Error for WireFormatError {
     fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,

@@ -29,7 +29,7 @@ pub struct Write {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Data, Error, Handle,
+        Data, Handle, WireFormatError,
     };
 
     use super::Write;
@@ -54,7 +54,7 @@ mod test {
         for i in 0..WRITE_VALID.len() {
             assert_eq!(
                 fail_decode::<Write>(&WRITE_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

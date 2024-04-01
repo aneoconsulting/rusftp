@@ -28,7 +28,7 @@ pub struct Rename {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error, Path,
+        Path, WireFormatError,
     };
 
     use super::Rename;
@@ -52,7 +52,7 @@ mod test {
         for i in 0..RENAME_VALID.len() {
             assert_eq!(
                 fail_decode::<Rename>(&RENAME_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }
