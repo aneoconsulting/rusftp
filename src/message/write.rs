@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Data, Handle};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Write {
     pub handle: Handle,
     pub offset: u64,

@@ -14,13 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bitflags::bitflags;
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Attrs {
     pub size: Option<u64>,
     pub owner: Option<Owner>,
-    pub perms: Option<u32>,
+    pub perms: Option<Permisions>,
     pub time: Option<Time>,
 }
 
@@ -35,56 +36,58 @@ impl Attrs {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u32)]
-#[non_exhaustive]
-pub enum Permisions {
-    // Permissions for others
-    OX = 0x0001,
-    OW = 0x0002,
-    OR = 0x0004,
-    // Permissions for group
-    GX = 0x0008,
-    GW = 0x0010,
-    GR = 0x0020,
-    // Permissions for user
-    UX = 0x0040,
-    UW = 0x0080,
-    UR = 0x0100,
-    // Special permissions
-    SX = 0x0200,
-    SW = 0x0400,
-    SR = 0x0800,
-    // File type
-    FIFO = 0x1000,
-    CHR = 0x2000,
-    DIR = 0x4000,
-    BLK = 0x6000,
-    REG = 0x8000,
-    LNK = 0xA000,
-    NAM = 0x5000,
+bitflags! {
+    #[repr(transparent)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct Permisions: u32 {
+        // Permissions for others
+        const OX = 0x0001;
+        const OW = 0x0002;
+        const OR = 0x0004;
+        // Permissions for group
+        const GX = 0x0008;
+        const GW = 0x0010;
+        const GR = 0x0020;
+        // Permissions for user
+        const UX = 0x0040;
+        const UW = 0x0080;
+        const UR = 0x0100;
+        // Special permissions
+        const SX = 0x0200;
+        const SW = 0x0400;
+        const SR = 0x0800;
+        // File type
+        const FIFO = 0x1000;
+        const CHR = 0x2000;
+        const DIR = 0x4000;
+        const BLK = 0x6000;
+        const REG = 0x8000;
+        const LNK = 0xA000;
+        const NAM = 0x5000;
+    }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Owner {
     pub uid: u32,
     pub gid: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Time {
     pub atime: u32,
     pub mtime: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u32)]
-#[non_exhaustive]
-enum AttrFlags {
-    Size = 0x00000001,
-    Owner = 0x00000002,
-    Perms = 0x00000004,
-    Time = 0x00000008,
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[repr(transparent)]
+    struct AttrFlags: u32 {
+        const Size = 0x00000001;
+        const Owner = 0x00000002;
+        const Perms = 0x00000004;
+        const Time = 0x00000008;
+    }
 }
 
 impl Serialize for Attrs {
@@ -92,19 +95,19 @@ impl Serialize for Attrs {
     where
         S: serde::Serializer,
     {
-        let mut attr_flags = 0u32;
+        let mut attr_flags = AttrFlags::empty();
 
         if self.size.is_some() {
-            attr_flags |= AttrFlags::Size as u32;
+            attr_flags |= AttrFlags::Size;
         }
         if self.owner.is_some() {
-            attr_flags |= AttrFlags::Owner as u32;
+            attr_flags |= AttrFlags::Owner;
         }
         if self.perms.is_some() {
-            attr_flags |= AttrFlags::Perms as u32;
+            attr_flags |= AttrFlags::Perms;
         }
         if self.time.is_some() {
-            attr_flags |= AttrFlags::Time as u32;
+            attr_flags |= AttrFlags::Time;
         }
 
         let mut state = serializer.serialize_tuple(5)?;
@@ -150,30 +153,26 @@ impl<'de> Deserialize<'de> for Attrs {
                 let mut attrs = Attrs::default();
                 let attr_flags: u32 = next!(seq, "attr_flags");
 
-                let all_flags = AttrFlags::Size as u32
-                    | AttrFlags::Owner as u32
-                    | AttrFlags::Perms as u32
-                    | AttrFlags::Time as u32;
-                if attr_flags & !all_flags != 0 {
+                let Some(attr_flags) = AttrFlags::from_bits(attr_flags) else {
                     return Err(A::Error::custom("invalid attr"));
-                }
+                };
 
-                if (attr_flags & AttrFlags::Size as u32) != 0 {
+                if !(attr_flags & AttrFlags::Size).is_empty() {
                     attrs.size = Some(next!(seq, "attr_size"));
                 } else {
                     next!(seq, "attr_size");
                 }
-                if (attr_flags & AttrFlags::Owner as u32) != 0 {
+                if !(attr_flags & AttrFlags::Owner).is_empty() {
                     attrs.owner = Some(next!(seq, "attr_owner"));
                 } else {
                     next!(seq, "attr_owner");
                 }
-                if (attr_flags & AttrFlags::Perms as u32) != 0 {
+                if !(attr_flags & AttrFlags::Perms).is_empty() {
                     attrs.perms = Some(next!(seq, "attr_perms"));
                 } else {
                     next!(seq, "attr_perms");
                 }
-                if (attr_flags & AttrFlags::Time as u32) != 0 {
+                if !(attr_flags & AttrFlags::Time).is_empty() {
                     attrs.time = Some(next!(seq, "attr_time"));
                 } else {
                     next!(seq, "attr_time");

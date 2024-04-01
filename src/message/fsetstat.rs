@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Handle};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FSetStat {
     pub handle: Handle,
     pub attrs: Attrs,

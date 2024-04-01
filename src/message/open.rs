@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Open {
     pub filename: Path,
     pub pflags: PFlags,
@@ -27,7 +27,7 @@ pub struct Open {
 
 bitflags::bitflags! {
     #[repr(transparent)]
-    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct PFlags: u32 {
         const READ = 0x00000001;
         const WRITE = 0x00000002;
@@ -35,27 +35,6 @@ bitflags::bitflags! {
         const CREATE = 0x00000008;
         const TRUNCATE = 0x00000010;
         const EXCLUDE = 0x00000020;
-    }
-}
-
-impl Serialize for PFlags {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.bits().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for PFlags {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        match PFlags::from_bits(Deserialize::deserialize(deserializer)?) {
-            Some(pflags) => Ok(pflags),
-            None => Err(serde::de::Error::custom("invalid pflags")),
-        }
     }
 }
 

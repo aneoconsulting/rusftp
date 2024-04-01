@@ -34,7 +34,7 @@ pub enum StatusCode {
     OpUnsupported = 8,
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Status {
     pub code: u32,
     pub error: Bytes,

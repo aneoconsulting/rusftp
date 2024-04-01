@@ -17,7 +17,7 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExtendedReply {
     #[serde(rename = "data_implicit_length")]
     pub data: Bytes,
