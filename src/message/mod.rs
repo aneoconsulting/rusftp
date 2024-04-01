@@ -246,12 +246,12 @@ macro_rules! messages {
             }
 
             impl TryFrom<Message> for $name {
-                type Error = ();
+                type Error = Message;
                 fn try_from(value: Message) -> Result<Self, Self::Error> {
                     if let Message::$name(value) = value {
                         Ok(value)
                     } else {
-                        Err(())
+                        Err(value)
                     }
                 }
             }
