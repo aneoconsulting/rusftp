@@ -17,7 +17,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rusftp::RealPath;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+
+use rusftp::PFlags;
 
 struct Handler;
 
@@ -33,22 +35,65 @@ impl russh::client::Handler for Handler {
 }
 
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // You can start a sftp server configured for this client with the following command:
     //
-    // docker run -p 2222:22 --rm atmoz/sftp:alpine user:pass:1000
+    // docker run -v /tmp:/home/user/tmp -p 2222:22 --rm atmoz/sftp:alpine user:pass:1000
 
+    println!("> Connect to the ssh server");
     let config = Arc::new(russh::client::Config::default());
-    let mut ssh = russh::client::connect(config, ("localhost", 2222), Handler)
-        .await
-        .unwrap();
+    let mut ssh = russh::client::connect(config, ("localhost", 2222), Handler).await?;
+    ssh.authenticate_password("user", "pass").await?;
 
-    ssh.authenticate_password("user", "pass").await.unwrap();
-    let sftp = rusftp::SftpClient::new(ssh).await.unwrap();
+    println!("> Start SFTP client");
+    let mut sftp = rusftp::SftpClient::new(ssh).await?;
 
-    let cwd = sftp.send(rusftp::Stat { path: ".".into() }).await.unwrap();
-    println!("CWD: {:?}", cwd);
+    println!("> Create a directory");
+    sftp.mkdir("/tmp/dir").await?;
 
-    let realpath = sftp.send(RealPath { path: ".".into() }).await.unwrap();
-    println!("RealPath: {:?}", realpath);
+    println!("> Create a symlink");
+    sftp.symlink("/tmp/dummy.txt", "/tmp/dir/link").await?;
+
+    println!("> Open a file for reading and writing");
+    let mut file = sftp
+        .open_with_flags(
+            "tmp/dir/link",
+            PFlags::CREATE | PFlags::READ | PFlags::WRITE,
+        )
+        .await?;
+
+    println!("> Write content to the file");
+    file.write_all(b"Hello world!").await?;
+
+    println!("> Seek back to the start of the file");
+    file.seek(std::io::SeekFrom::Start(0)).await?;
+
+    println!("> Read the whole content of the file");
+    let mut content = String::new();
+    file.read_to_string(&mut content).await?;
+    println!("File content: {content:?}");
+
+    println!("> Close the file");
+    // optional, file is closed is performed when dropped
+    file.close().await?;
+    std::mem::drop(file); // file borrows sftp
+
+    println!("> Get informations");
+    println!("stat: {:?}", sftp.stat("/tmp/dir/link").await?);
+    println!("lstat: {:?}", sftp.lstat("/tmp/dir/link").await?);
+    println!("realpath: {:?}", sftp.realpath("/tmp/dir/link").await?);
+
+    println!("> Remove both file and link");
+    let (a, b) = tokio::join!(sftp.remove("/tmp/dir/link"), sftp.remove("/tmp/dummy.txt"));
+    a?;
+    b?;
+
+    println!("> Remove directory");
+    sftp.rmdir("/tmp/dir").await?;
+
+    println!("> Stop sftp client");
+    // optional, sftp is stopped when dropped
+    sftp.stop().await;
+
+    Ok(())
 }
