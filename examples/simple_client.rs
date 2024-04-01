@@ -83,6 +83,11 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("lstat: {:?}", sftp.lstat("/tmp/dir/link").await?);
     println!("realpath: {:?}", sftp.realpath("/tmp/dir/link").await?);
 
+    println!("> Read dir");
+    for entry in sftp.readdir("/tmp/dir").await? {
+        println!("{:?}", entry);
+    }
+
     println!("> Remove both file and link");
     let (a, b) = tokio::join!(sftp.remove("/tmp/dir/link"), sftp.remove("/tmp/dummy.txt"));
     a?;

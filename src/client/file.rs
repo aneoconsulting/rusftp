@@ -30,7 +30,6 @@ pub struct File<'a> {
     client: &'a SftpClient,
     handle: Option<Handle>,
     offset: u64,
-    eof: bool,
     pending: PendingOperation,
 }
 
@@ -46,7 +45,6 @@ impl<'a> File<'a> {
             client,
             handle: Some(handle),
             offset: 0,
-            eof: false,
             pending: PendingOperation::None,
         }
     }
@@ -58,7 +56,6 @@ impl File<'static> {
             client: &super::SFTP_CLIENT_STOPPED,
             handle: None,
             offset: 0,
-            eof: false,
             pending: PendingOperation::None,
         }
     }
@@ -68,7 +65,6 @@ pub static FILE_CLOSED: File<'static> = File {
     client: &super::SFTP_CLIENT_STOPPED,
     handle: None,
     offset: 0,
-    eof: true,
     pending: PendingOperation::None,
 };
 
@@ -158,11 +154,10 @@ impl AsyncRead for File<'_> {
                     length: buf.remaining().min(32768) as u32, // read at most 32K
                 });
 
-                let eof = self.eof;
                 self.pending = PendingOperation::Read(Box::pin(async move {
                     match read.await {
                         Ok(data) => Ok(data.0),
-                        Err(status) if status.code == StatusCode::Eof as u32 && !eof => {
+                        Err(status) if status.code == StatusCode::Eof as u32 => {
                             Ok(Bytes::default())
                         }
                         Err(status) => Err(std::io::Error::from(status)),
@@ -184,7 +179,6 @@ impl AsyncRead for File<'_> {
                 self.pending = PendingOperation::None;
 
                 if data.is_empty() {
-                    self.eof = true;
                     std::task::Poll::Ready(Ok(()))
                 } else {
                     buf.put_slice(&data);
@@ -204,7 +198,6 @@ impl AsyncSeek for File<'_> {
                 // Seek from start can be performed immediately
                 std::io::SeekFrom::Start(n) => {
                     self.offset = n;
-                    self.eof = false;
                 }
                 // Seek from end requires to stat the file first
                 std::io::SeekFrom::End(i) => {
@@ -253,7 +246,6 @@ impl AsyncSeek for File<'_> {
             OperationResult::Seek(seek) => {
                 if let Ok(n) = seek {
                     self.offset = n;
-                    self.eof = false;
                 }
 
                 Poll::Ready(seek)

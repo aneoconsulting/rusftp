@@ -22,12 +22,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Handle(pub Bytes);
 
-impl<T: Into<Bytes>> From<T> for Handle {
-    fn from(value: T) -> Self {
-        Self(value.into())
-    }
-}
-
 impl Deref for Handle {
     type Target = [u8];
 

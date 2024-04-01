@@ -24,9 +24,9 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 use crate::{
-    message, Attrs, Close, Data, Extended, FSetStat, FStat, Handle, LStat, Message, MkDir, Open,
-    OpenDir, PFlags, Path, Read, ReadLink, RealPath, Remove, Rename, RmDir, SetStat, Stat, Status,
-    StatusCode, Symlink, Write,
+    message, Attrs, Close, Data, Extended, FSetStat, FStat, Handle, LStat, Message, MkDir, Name,
+    Open, OpenDir, PFlags, Path, Read, ReadDir, ReadLink, RealPath, Remove, Rename, RmDir, SetStat,
+    Stat, Status, StatusCode, Symlink, Write,
 };
 
 mod file;
@@ -385,6 +385,13 @@ impl SftpClient {
         self.open_with_flags_attrs(filename, PFlags::default(), Attrs::default())
     }
 
+    pub fn opendir_handle<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Handle, Status>> + Send + Sync + 'static {
+        self.send(OpenDir { path: path.into() })
+    }
+
     pub fn read<H: Into<Handle>>(
         &self,
         handle: H,
@@ -400,11 +407,27 @@ impl SftpClient {
         async move { Ok(request.await?.0) }
     }
 
-    pub fn readdir_handle<P: Into<Path>>(
+    pub fn readdir_handle<H: Into<Handle>>(
+        &self,
+        handle: H,
+    ) -> impl Future<Output = Result<Name, Status>> + Send + Sync + 'static {
+        self.send(ReadDir {
+            handle: handle.into(),
+        })
+    }
+
+    pub fn readdir<P: Into<Path>>(
         &self,
         path: P,
-    ) -> impl Future<Output = Result<Handle, Status>> + Send + Sync + 'static {
-        self.send(OpenDir { path: path.into() })
+    ) -> impl Future<Output = Result<Name, Status>> + Send + Sync + '_ {
+        let dir = self.send(OpenDir { path: path.into() });
+
+        async move {
+            let handle = dir.await?;
+            let name = self.readdir_handle(handle.clone()).await?;
+            self.close(handle).await?;
+            Ok(name)
+        }
     }
 
     pub fn readlink<P: Into<Path>>(

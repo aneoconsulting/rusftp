@@ -20,6 +20,7 @@ use std::{
     slice::SliceIndex,
 };
 
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
@@ -27,7 +28,7 @@ use super::{Attrs, Path};
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NameEntry {
     pub filename: Path,
-    pub long_name: Path,
+    pub long_name: Bytes,
     pub attrs: Attrs,
 }
 
@@ -137,7 +138,7 @@ mod test {
         encode_decode(
             NameEntry {
                 filename: Path(Bytes::from_static(b"filename")),
-                long_name: Path(Bytes::from_static(b"long name")),
+                long_name: Bytes::from_static(b"long name"),
                 attrs: Attrs {
                     size: Some(0xa7735),
                     ..Default::default()
