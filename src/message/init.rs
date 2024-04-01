@@ -19,9 +19,19 @@ use std::collections::BTreeMap;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
+/// Initialization packet.
+///
+/// It is answered with [`Version`](struct@crate::Version).
+///
+/// internal: `SSH_FXP_INIT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Init {
+    /// Maximal version of the protocol supported by the client
     pub version: u32,
+
+    /// List of extensions supported by the client
+    ///
+    /// Implementations MUST silently ignore any extensions whose name they do not recognize.
     #[serde(rename = "extensions_implicit_length")]
     pub extensions: BTreeMap<Bytes, Bytes>,
 }

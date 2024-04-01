@@ -18,8 +18,17 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
+/// Request to read the target of a symbolic link.
+///
+/// The response will contain a single entry whose attributes have dummy values.
+///
+/// It is answered with [`Name`](struct@crate::Name) in case of success
+/// and [`Status`](struct@crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_READLINK`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReadLink {
+    /// Path of the symbolic link to read
     pub path: Path,
 }
 

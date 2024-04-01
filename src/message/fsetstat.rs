@@ -18,9 +18,22 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Handle};
 
+/// Request to change the attributes (metadata) of an open file or directory.
+///
+/// This request is used for operations such as changing the ownership,
+/// permissions or access times, as well as for truncating a file.
+///
+/// An error will be returned if the specified file system object does not exist
+/// or the user does not have sufficient rights to modify the specified attributes.
+///
+/// It is answered with [`Status`](struct@crate::Status).
+///
+/// internal: `SSH_FXP_FSETSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FSetStat {
+    /// Handle of the file or directory to change the attributes
     pub handle: Handle,
+    /// New attributes to apply
     pub attrs: Attrs,
 }
 

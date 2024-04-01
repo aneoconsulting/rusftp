@@ -18,8 +18,17 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
+/// Request to read the attributes (metadata) of a file or directory.
+///
+/// [`LStat`](struct@crate::LStat) follows symbolic links.
+///
+/// It is answered with [`Attrs`](struct@crate::Attrs) in case of success
+/// and [`Status`](struct@crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_LSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LStat {
+    /// Path of the file, directory, or symbolic link
     pub path: Path,
 }
 

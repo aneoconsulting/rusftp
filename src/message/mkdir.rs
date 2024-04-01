@@ -18,9 +18,18 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
+/// Request to create a new directory.
+///
+/// An error will be returned if a file or directory with the specified path already exists.
+///
+/// It is answered with [`Status`](struct@crate::Status).
+///
+/// internal: `SSH_FXP_MKDIR`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MkDir {
+    /// Path where the new directory will be located
     pub path: Path,
+    /// Default attributes to apply to the newly created directory
     pub attrs: Attrs,
 }
 

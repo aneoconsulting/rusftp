@@ -18,8 +18,15 @@ use serde::{Deserialize, Serialize};
 
 use super::Handle;
 
+/// Request to read the attributes (metadata) of an open file or directory.
+///
+/// It is answered with [`Attrs`](struct@crate::Attrs) in case of success
+/// and [`Status`](struct@crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_FSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FStat {
+    /// Handle of the open file or directory
     pub handle: Handle,
 }
 

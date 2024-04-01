@@ -18,9 +18,16 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
+/// Request to rename/move a file or a directory.
+///
+/// It is answered with [`Status`](struct@crate::Status).
+///
+/// internal: `SSH_FXP_RENAME`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Rename {
+    /// Current path of the file or directory to rename/move
     pub old_path: Path,
+    /// New path where the file or directory will be moved to
     pub new_path: Path,
 }
 

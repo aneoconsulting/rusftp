@@ -18,8 +18,18 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
+/// Request to remove an existing directory.
+///
+/// An error will be returned if no directory with the specified path exists,
+/// or if the specified directory is not empty, or if the path specified
+/// a file system object other than a directory.
+///
+/// It is answered with [`Status`](struct@crate::Status).
+///
+/// internal: `SSH_FXP_RMDIR`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RmDir {
+    /// Path of the directory to remove
     pub path: Path,
 }
 

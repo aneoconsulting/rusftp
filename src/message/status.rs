@@ -20,35 +20,96 @@ use thiserror::Error;
 
 use crate::Message;
 
+/// Status code of an operation.
+///
+/// `OK` indicates that the operations has been successful.
+/// All other values indicate errors.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Error)]
 #[repr(u32)]
 #[non_exhaustive]
 pub enum StatusCode {
+    /// Indicates successful completion of the operation.
+    ///
+    /// internal: `SSH_FX_OK`
     #[error("Ok")]
     #[default]
     Ok = 0,
+
+    /// Indicates end-of-file condition.
+    ///
+    /// For [`Read`](struct@crate::Read) it means that no more data is available in the file,
+    /// and for [`ReadDir`](struct@crate::ReadDir) it indicates that no more files are contained in the directory.
+    ///
+    /// internal: `SSH_FX_EOF`
     #[error("Eof")]
     Eof = 1,
+
+    /// Returned when a reference is made to a file which should exist but doesn't.
+    ///
+    /// internal: `SSH_FX_NO_SUCH_FILE`
     #[error("NoSuchFile")]
     NoSuchFile = 2,
+
+    /// Returned when the authenticated user does not have sufficient permissions to perform the operation.
+    ///
+    /// internal: `SSH_FX_PERMISSION_DENIED`
     #[error("PermissionDenied")]
     PermissionDenied = 3,
+
+    /// A generic catch-all error message
+    ///
+    /// It should be returned if an error occurs for which there is no more specific error code defined.
+    ///
+    /// internal: `SSH_FX_FAILURE`
     #[error("Failure")]
     Failure = 4,
+
+    /// May be returned if a badly formatted packet or protocol incompatibility is detected.
+    ///
+    /// internal: `SSH_FX_BAD_MESSAGE`
     #[error("BadMessage")]
     BadMessage = 5,
+
+    /// A pseudo-error which indicates that the client has no connection to the server.
+    ///
+    /// It can only be generated locally by the client, and MUST NOT be returned by servers.
+    ///
+    /// internal: `SSH_FX_NO_CONNECTION`
     #[error("NoConnection")]
     NoConnection = 6,
+
+    /// A pseudo-error which indicates that the connection to the server has been lost.
+    ///
+    /// It can only be generated locally by the client, and MUST NOT be returned by servers.
+    ///
+    /// internal: `SSH_FX_CONNECTION_LOST`
     #[error("ConnectionLost")]
     ConnectionLost = 7,
+
+    /// Indicates that an attempt was made to perform an operation which is not supported for the server
+    ///
+    /// It may be generated locally by the client if e.g.  the version number exchange indicates
+    /// that a required feature is not supported by the server,
+    /// or it may be returned by the server if the server does not implement an operation.
+    ///
+    /// internal: `SSH_FX_OP_UNSUPPORTED`
     #[error("OpUnsupported")]
     OpUnsupported = 8,
 }
 
+/// Status of an operation.
+///
+/// A status code `OK` indicates that the operations has been successful.
+/// All other status codes indicate errors.
+///
+/// internal: `SSH_FXP_STATUS`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Status {
+    /// Code of the status, see [`StatusCode`](enum@crate::StatusCode)
     pub code: StatusCode,
+    /// Message of the error
     pub error: Bytes,
+    /// Language tag for the error message
     pub language: Bytes,
 }
 

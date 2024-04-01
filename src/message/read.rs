@@ -18,10 +18,19 @@ use serde::{Deserialize, Serialize};
 
 use super::Handle;
 
+/// Request to read a portion of an opened file.
+///
+/// It is answered with [`Data`](struct@crate::Data) in case of success
+/// and [`Status`](struct@crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_READ`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Read {
+    /// Handle of the file to read from
     pub handle: Handle,
+    /// Byte offset where the read should start
     pub offset: u64,
+    /// Number of bytes to read
     pub length: u32,
 }
 

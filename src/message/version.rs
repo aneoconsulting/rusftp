@@ -19,9 +19,17 @@ use std::collections::BTreeMap;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
+/// Version reply from the server.
+///
+/// internal: `SSH_FXP_VERSION`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Version {
+    /// Version of the protocol used for the rest of the communication
     pub version: u32,
+
+    /// List of extensions supported by the server
+    ///
+    /// Implementations MUST silently ignore any extensions whose name they do not recognize.
     #[serde(rename = "extensions_implicit_length")]
     pub extensions: BTreeMap<Bytes, Bytes>,
 }

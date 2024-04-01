@@ -18,8 +18,18 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
+/// Request to open a directory for listing.
+///
+/// Once the directory has been successfully opened, files (and directories)
+/// contained in it can be listed using [`ReadDir`](struct@crate::ReadDir) requests.
+///
+/// It is answered with [`Handle`](struct@crate::Handle) in case of success
+/// and [`Status`](struct@crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_OPENDIR`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OpenDir {
+    /// Path of the directory to open
     pub path: Path,
 }
 

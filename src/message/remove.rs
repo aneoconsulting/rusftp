@@ -18,8 +18,14 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
+/// Request to remove a file.
+///
+/// It is answered with [`Status`](struct@crate::Status).
+///
+/// internal: `SSH_FXP_REMOVE`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Remove {
+    /// Path of the file to remove
     pub path: Path,
 }
 

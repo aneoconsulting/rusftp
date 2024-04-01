@@ -18,10 +18,18 @@ use serde::{Deserialize, Serialize};
 
 use super::{Data, Handle};
 
+/// Request to write to a portion of an opened file.
+///
+/// It is answered with [`Status`](struct@crate::Status).
+///
+/// internal: `SSH_FXP_WRITE`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Write {
+    /// Handle of the file to write to
     pub handle: Handle,
+    /// Byte offset where the write should start
     pub offset: u64,
+    /// Bytes to be written to the file
     pub data: Data,
 }
 

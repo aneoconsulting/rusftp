@@ -14,11 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Error while encoding or decoding a message
 #[derive(Debug, PartialEq, Eq)]
 pub enum WireFormatError {
+    /// The message was too small for the data it appears to be
     NotEnoughData,
+    /// Unsupported character set
     Unsupported,
+    /// Invalid character found
     InvalidChar,
+    /// Custom error
     Custom(String),
 }
 
