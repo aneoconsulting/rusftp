@@ -1,11 +1,13 @@
 [package]
 name = "rusftp"
-version = "0.1.1"
+version = "0.2.0-beta-0"
 authors = ["Florian Lemaitre <flemaitre@aneo.fr>"]
 description = "SFTP library based on russh"
 repository = "https://github.com/aneoconsulting/rusftp"
 license = "Apache-2.0"
 edition = "2021"
+readme = "README.md"
+keywords = ["russh", "sftp", "ssh2", "client"]
 include = ["**/*.rs", "Cargo.toml", "LICENSE", "README.md"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
