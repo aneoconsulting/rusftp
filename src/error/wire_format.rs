@@ -14,42 +14,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use thiserror::Error;
+
 /// Error while encoding or decoding a message
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum WireFormatError {
     /// The message was too small for the data it appears to be
+    #[error("Not enough data")]
     NotEnoughData,
+
     /// Unsupported character set
+    #[error("Unsupported operation")]
     Unsupported,
+    
     /// Invalid character found
+    #[error("Invalid character")]
     InvalidChar,
+
     /// Custom error
+    #[error("{0}")]
     Custom(String),
-}
-
-impl std::fmt::Display for WireFormatError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WireFormatError::NotEnoughData => f.write_str("Decode Error: Not enough data"),
-            WireFormatError::Unsupported => f.write_str("Decode Error: Unsupported"),
-            WireFormatError::InvalidChar => f.write_str("Decode Error: Invalid character"),
-            WireFormatError::Custom(msg) => write!(f, "Decode Error: {msg}"),
-        }
-    }
-}
-
-impl std::error::Error for WireFormatError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-
-    fn description(&self) -> &str {
-        "description() is deprecated; use Display"
-    }
-
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        self.source()
-    }
 }
 
 impl serde::de::Error for WireFormatError {
