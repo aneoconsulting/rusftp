@@ -18,16 +18,16 @@ use bitflags::bitflags;
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
 /// Attributes of a file or a directory.
-/// 
+///
 /// The same encoding is used both when returning file attributes
-/// from the server and when sending file attributes to the server. 
+/// from the server and when sending file attributes to the server.
 /// When sending it to the server, the flags field specifies which attributes are included,
 /// and the server will use default values for the remaining attributes
-/// (or will not modify the values of remaining attributes). 
+/// (or will not modify the values of remaining attributes).
 /// When receiving attributes from the server,
 /// the flags specify which attributes are included in the returned data.
 /// The server normally returns all attributes it knows about.
-/// 
+///
 /// internal: `SSH_FXP_ATTRS`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Attrs {
@@ -130,7 +130,7 @@ pub struct Time {
 }
 
 bitflags! {
-    /// Flags indicating which attributes are present in [`Attrs`](struct@crate::Attrs).
+    /// Flags indicating which attributes are present in [`Attrs`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     #[repr(transparent)]
     struct AttrFlags: u32 {

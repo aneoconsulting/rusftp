@@ -20,7 +20,7 @@ use super::{Data, Handle};
 
 /// Request to write to a portion of an opened file.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: `SSH_FXP_WRITE`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

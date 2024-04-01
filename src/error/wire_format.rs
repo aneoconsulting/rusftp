@@ -26,7 +26,7 @@ pub enum WireFormatError {
     /// Unsupported character set
     #[error("Unsupported operation")]
     Unsupported,
-    
+
     /// Invalid character found
     #[error("Invalid character")]
     InvalidChar,

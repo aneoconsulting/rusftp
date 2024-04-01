@@ -37,8 +37,8 @@ pub enum StatusCode {
 
     /// Indicates end-of-file condition.
     ///
-    /// For [`Read`](struct@crate::Read) it means that no more data is available in the file,
-    /// and for [`ReadDir`](struct@crate::ReadDir) it indicates that no more files are contained in the directory.
+    /// For [`Read`](crate::Read) it means that no more data is available in the file,
+    /// and for [`ReadDir`](crate::ReadDir) it indicates that no more files are contained in the directory.
     ///
     /// internal: `SSH_FX_EOF`
     #[error("Eof")]
@@ -105,7 +105,7 @@ pub enum StatusCode {
 /// internal: `SSH_FXP_STATUS`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Status {
-    /// Code of the status, see [`StatusCode`](enum@crate::StatusCode)
+    /// Code of the status, see [`StatusCode`]
     pub code: StatusCode,
     /// Message of the error
     pub error: Bytes,

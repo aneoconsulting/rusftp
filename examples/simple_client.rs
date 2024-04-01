@@ -81,6 +81,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("> Get informations");
     println!("stat: {:?}", sftp.stat("/tmp/dir/link").await?);
     println!("lstat: {:?}", sftp.lstat("/tmp/dir/link").await?);
+    println!("readlink: {:?}", sftp.readlink("/tmp/dir/link").await?);
     println!("realpath: {:?}", sftp.realpath("/tmp/dir/link").await?);
 
     println!("> Read dir");

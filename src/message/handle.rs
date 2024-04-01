@@ -20,11 +20,11 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 /// Arbitrary string that identifies an open file or directory on the server.
-/// 
+///
 /// The handle is opaque to the client;
 /// the client MUST NOT attempt to interpret or modify it in any way.
 /// The length of the handle string MUST NOT exceed 256 data bytes.
-/// 
+///
 /// internal: `SSH_FXP_HANDLE`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Handle(pub Bytes);

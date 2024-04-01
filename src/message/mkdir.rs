@@ -22,7 +22,7 @@ use super::{Attrs, Path};
 ///
 /// An error will be returned if a file or directory with the specified path already exists.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: `SSH_FXP_MKDIR`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

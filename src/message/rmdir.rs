@@ -24,7 +24,7 @@ use super::Path;
 /// or if the specified directory is not empty, or if the path specified
 /// a file system object other than a directory.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: `SSH_FXP_RMDIR`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

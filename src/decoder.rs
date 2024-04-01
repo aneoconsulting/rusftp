@@ -22,6 +22,7 @@ use serde::{
 
 use crate::WireFormatError;
 
+/// Serde decoder for the SFTP wire format.
 pub struct SftpDecoder<'de> {
     pub(crate) buf: &'de [u8],
     current_field: &'static str,

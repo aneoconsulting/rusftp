@@ -20,7 +20,7 @@ use super::Path;
 
 /// Request to rename/move a file or a directory.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: `SSH_FXP_RENAME`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

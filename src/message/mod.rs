@@ -317,7 +317,7 @@ impl Message {
         self.kind().code()
     }
     pub fn encode(&self, id: u32) -> Result<Bytes, WireFormatError> {
-        let mut encoder = SftpEncoder::new(Vec::with_capacity(16));
+        let mut encoder = SftpEncoder::with_vec(Vec::with_capacity(16));
 
         // Reserve space for frame length
         encoder.buf.put_u32(0);

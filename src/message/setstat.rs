@@ -26,7 +26,7 @@ use super::{Attrs, Path};
 /// An error will be returned if the specified file system object does not exist
 /// or the user does not have sufficient rights to modify the specified attributes.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: `SSH_FXP_SETSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

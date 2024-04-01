@@ -19,9 +19,8 @@ use std::ops::Deref;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-
 /// Path component on the remote server.
-/// 
+///
 /// It can be a path relative to the current work directory on the remote server,
 /// or it can be an absolute path.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

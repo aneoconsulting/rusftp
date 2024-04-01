@@ -9,7 +9,7 @@ pub(crate) fn encode_decode<T>(value: T, expected: &[u8])
 where
     T: Serialize + DeserializeOwned + PartialEq + Debug,
 {
-    let mut serializer = SftpEncoder::new(Vec::new());
+    let mut serializer = SftpEncoder::with_vec(Vec::new());
     let input = value;
     input
         .serialize(&mut serializer)

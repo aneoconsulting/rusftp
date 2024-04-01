@@ -19,17 +19,30 @@ use serde::ser;
 
 use crate::WireFormatError;
 
+/// Serde encoder for the SFTP wire format.
+#[derive(Default)]
 pub struct SftpEncoder {
     pub(crate) buf: Vec<u8>,
     current_field: &'static str,
 }
 
 impl SftpEncoder {
-    pub fn new(buf: Vec<u8>) -> Self {
+    /// Create a new SFTP encoder with an empty buffer.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create a new SFTP encoder with an pre-existing buffer.
+    pub fn with_vec(buf: Vec<u8>) -> Self {
         Self {
             buf,
             current_field: "",
         }
+    }
+
+    /// Get the encoded buffer from the SFTP encoder
+    pub fn to_vec(self) -> Vec<u8> {
+        self.buf
     }
 
     fn encode_length(&self) -> bool {

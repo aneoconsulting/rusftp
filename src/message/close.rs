@@ -20,7 +20,7 @@ use super::Handle;
 
 /// Request to close an opened file or directory.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: SSH_FXP_CLOSE
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

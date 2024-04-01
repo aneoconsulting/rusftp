@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
-/// Request to rename/move a file or a directory.
+/// Request to create a symbolic link.
 ///
-/// It is answered with [`Status`](struct@crate::Status).
+/// It is answered with [`Status`](crate::Status).
 ///
 /// internal: `SSH_FXP_RENAME`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

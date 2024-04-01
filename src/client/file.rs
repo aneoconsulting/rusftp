@@ -25,6 +25,7 @@ use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
 use crate::{message, Attrs, Close, Handle, SftpClient, Status, StatusCode, Write};
 
+/// File accessible remotely with SFTP
 #[derive(Debug)]
 pub struct File<'a> {
     client: &'a SftpClient,
@@ -40,6 +41,15 @@ impl Drop for File<'_> {
 }
 
 impl<'a> File<'a> {
+    /// Create a file from a raw [`Handle`].
+    ///
+    /// The handle must come from `SftpClient::open`.
+    ///
+    /// The remote file will be closed when the object is dropped.
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - Handle of the open file
     pub fn new(client: &'a SftpClient, handle: Handle) -> Self {
         File {
             client,
@@ -51,6 +61,9 @@ impl<'a> File<'a> {
 }
 
 impl File<'static> {
+    /// Create a closed file.
+    ///
+    /// The file cannot be opened by any means.
     pub fn new_closed() -> Self {
         File {
             client: &super::SFTP_CLIENT_STOPPED,
@@ -69,13 +82,15 @@ pub static FILE_CLOSED: File<'static> = File {
 };
 
 impl File<'_> {
+    /// Check whether the file is closed
     pub fn is_closed(&self) -> bool {
         self.handle.is_none()
     }
 
+    /// Close the remote file
     pub fn close(&mut self) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         let future = if let Some(handle) = std::mem::take(&mut self.handle) {
-            Some(self.client.send(message::Close { handle }))
+            Some(self.client.request(message::Close { handle }))
         } else {
             // If the file was already closed, no need to close it
             None
@@ -89,9 +104,10 @@ impl File<'_> {
         }
     }
 
+    /// Read the attributes (metadata) of the file.
     pub fn stat(&self) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
-            Ok(self.client.send(message::FStat {
+            Ok(self.client.request(message::FStat {
                 handle: handle.clone(),
             }))
         } else {
@@ -106,14 +122,25 @@ impl File<'_> {
         }
     }
 
-    pub fn set_stat(
+    /// change the attributes (metadata) of the file.
+    ///
+    /// This request is used for operations such as changing the ownership,
+    /// permissions or access times.
+    ///
+    /// An error will be returned if the specified file system object does not exist
+    /// or the user does not have sufficient rights to modify the specified attributes.
+    ///
+    /// # Arguments
+    ///
+    /// * `attrs` - New attributes to apply (convertible to [`Attrs`])
+    pub fn set_stat<A: Into<Attrs>>(
         &self,
-        attrs: Attrs,
+        attrs: A,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
-            Ok(self.client.send(message::FSetStat {
+            Ok(self.client.request(message::FSetStat {
                 handle: handle.clone(),
-                attrs,
+                attrs: attrs.into(),
             }))
         } else {
             Err(StatusCode::Failure.to_status("File was already closed".into()))
@@ -148,7 +175,7 @@ impl AsyncRead for File<'_> {
                 };
 
                 // Spawn the read future
-                let read = self.client.send(crate::Read {
+                let read = self.client.request(crate::Read {
                     handle,
                     offset: self.offset,
                     length: buf.remaining().min(32768) as u32, // read at most 32K
@@ -274,7 +301,7 @@ impl AsyncWrite for File<'_> {
                 let length = buf.len().min(32768); // write at most 32K
 
                 // Spawn the write future
-                let write = self.client.send(Write {
+                let write = self.client.request(Write {
                     handle,
                     offset: self.offset,
                     data: buf[0..length].to_owned().into(),
@@ -338,7 +365,7 @@ impl AsyncWrite for File<'_> {
                 };
 
                 // Spawn the close future
-                let close = self.client.send(Close { handle });
+                let close = self.client.request(Close { handle });
 
                 self.pending = PendingOperation::Close(Box::pin(async move {
                     close.await.map_err(std::io::Error::from)
