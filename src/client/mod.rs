@@ -31,8 +31,10 @@ use crate::{
     Stat, Status, StatusCode, Symlink, Write,
 };
 
+mod dir;
 mod file;
 
+pub use dir::{Dir, DIR_CLOSED};
 pub use file::{File, FILE_CLOSED};
 
 /// SFTP client
@@ -542,6 +544,24 @@ impl SftpClient {
         self.request(OpenDir { path: path.into() })
     }
 
+    /// Open a directory for listing.
+    ///
+    /// Returns a [`Dir`] for the directory specified.
+    /// It implements [`Stream<Item = Result<NameEntry, ...>>`](futures::stream::Stream).
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path of the directory to open (convertible to [`Path`])
+    pub fn opendir<P: Into<Path>>(
+        &self,
+        path: P,
+    ) -> impl Future<Output = Result<Dir, Status>> + Send + Sync + 'static {
+        let request = self.request(OpenDir { path: path.into() });
+        let client = self.clone();
+
+        async move { Ok(Dir::new(client, request.await?)) }
+    }
+
     /// Read a portion of an opened file.
     ///
     /// # Arguments
@@ -586,20 +606,38 @@ impl SftpClient {
 
     /// Read a directory listing.
     ///
+    /// If you need an asynchronous [`Stream`](futures::stream::Stream), you can use `opendir()` instead
+    ///
     /// # Arguments
     ///
     /// * `path`: Path of the directory to list (convertible to [`Path`])
     pub fn readdir<P: Into<Path>>(
         &self,
         path: P,
-    ) -> impl Future<Output = Result<Name, Status>> + Send + Sync + '_ {
+    ) -> impl Future<Output = Result<Name, Status>> + Send + Sync + 'static {
         let dir = self.request(OpenDir { path: path.into() });
+        let client = self.clone();
+        let mut entries = Name::default();
 
         async move {
             let handle = dir.await?;
-            let name = self.readdir_handle(handle.clone()).await?;
-            self.close(handle).await?;
-            Ok(name)
+
+            loop {
+                match client.readdir_handle(handle.clone()).await {
+                    Ok(mut chunk) => entries.0.append(&mut chunk.0),
+                    Err(Status {
+                        code: StatusCode::Eof,
+                        ..
+                    }) => break,
+                    Err(err) => {
+                        _ = client.close(handle).await;
+                        return Err(err);
+                    }
+                }
+            }
+
+            client.close(handle).await?;
+            Ok(entries)
         }
     }
 
