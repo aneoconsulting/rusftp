@@ -76,7 +76,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("> Close the file");
     // optional, file is closed is performed when dropped
     file.close().await?;
-    std::mem::drop(file); // file borrows sftp
 
     println!("> Get informations");
     println!("stat: {:?}", sftp.stat("/tmp/dir/link").await?);

@@ -27,20 +27,20 @@ use crate::{message, Attrs, Close, Handle, SftpClient, Status, StatusCode, Write
 
 /// File accessible remotely with SFTP
 #[derive(Debug)]
-pub struct File<'a> {
-    client: &'a SftpClient,
+pub struct File {
+    client: SftpClient,
     handle: Option<Handle>,
     offset: u64,
     pending: PendingOperation,
 }
 
-impl Drop for File<'_> {
+impl Drop for File {
     fn drop(&mut self) {
         _ = futures::executor::block_on(self.close());
     }
 }
 
-impl<'a> File<'a> {
+impl File {
     /// Create a file from a raw [`Handle`].
     ///
     /// The handle must come from `SftpClient::open`.
@@ -50,7 +50,7 @@ impl<'a> File<'a> {
     /// # Arguments
     ///
     /// * `handle` - Handle of the open file
-    pub fn new(client: &'a SftpClient, handle: Handle) -> Self {
+    pub fn new(client: SftpClient, handle: Handle) -> Self {
         File {
             client,
             handle: Some(handle),
@@ -58,15 +58,13 @@ impl<'a> File<'a> {
             pending: PendingOperation::None,
         }
     }
-}
 
-impl File<'static> {
     /// Create a closed file.
     ///
     /// The file cannot be opened by any means.
-    pub fn new_closed() -> Self {
+    pub const fn new_closed() -> Self {
         File {
-            client: &super::SFTP_CLIENT_STOPPED,
+            client: SftpClient::new_stopped(),
             handle: None,
             offset: 0,
             pending: PendingOperation::None,
@@ -74,14 +72,14 @@ impl File<'static> {
     }
 }
 
-pub static FILE_CLOSED: File<'static> = File {
-    client: &super::SFTP_CLIENT_STOPPED,
+pub static FILE_CLOSED: File = File {
+    client: SftpClient::new_stopped(),
     handle: None,
     offset: 0,
     pending: PendingOperation::None,
 };
 
-impl File<'_> {
+impl File {
     /// Check whether the file is closed
     pub fn is_closed(&self) -> bool {
         self.handle.is_none()
@@ -155,7 +153,7 @@ impl File<'_> {
     }
 }
 
-impl AsyncRead for File<'_> {
+impl AsyncRead for File {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -216,7 +214,7 @@ impl AsyncRead for File<'_> {
     }
 }
 
-impl AsyncSeek for File<'_> {
+impl AsyncSeek for File {
     fn start_seek(mut self: Pin<&mut Self>, position: std::io::SeekFrom) -> std::io::Result<()> {
         if let PendingOperation::None = self.pending {
             match position {
@@ -280,7 +278,7 @@ impl AsyncSeek for File<'_> {
     }
 }
 
-impl AsyncWrite for File<'_> {
+impl AsyncWrite for File {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,

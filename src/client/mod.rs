@@ -16,6 +16,8 @@
 
 use std::collections::HashMap;
 use std::future::Future;
+use std::sync::Arc;
+use std::task::ready;
 
 use async_trait::async_trait;
 use bytes::{Buf, Bytes};
@@ -60,13 +62,10 @@ pub use file::{File, FILE_CLOSED};
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Default, Clone)]
 pub struct SftpClient {
-    inner: Option<SftpClientInner>,
-}
-
-struct SftpClientInner {
-    commands: mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>,
-    request_processor: JoinHandle<()>,
+    commands: Option<mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>>,
+    request_processor: Option<Arc<JoinHandle<()>>>,
 }
 
 pub static SFTP_CLIENT_STOPPED: SftpClient = SftpClient::new_stopped();
@@ -75,7 +74,10 @@ impl SftpClient {
     /// Creates a stopped client.
     /// This client cannot be opened.
     pub const fn new_stopped() -> Self {
-        Self { inner: None }
+        Self {
+            commands: None,
+            request_processor: None,
+        }
     }
 
     /// Creates a new client from a ssh connection.
@@ -170,6 +172,7 @@ impl SftpClient {
                 tokio::select! {
                     // New request to send
                     request = rx.recv() => {
+                        // If received null, the commands channel has been closed
                         let Some((message, tx)) = request else {
                             _ = channel.close().await;
                             break;
@@ -193,6 +196,7 @@ impl SftpClient {
 
                     // New response received
                     response = channel.wait() => {
+                        // If received null, the SSH channel has been closed
                         let Some(ChannelMsg::Data { data }) = response else {
                             rx.close();
                             break;
@@ -231,10 +235,8 @@ impl SftpClient {
         });
 
         Ok(Self {
-            inner: Some(SftpClientInner {
-                commands: tx,
-                request_processor,
-            }),
+            commands: Some(tx),
+            request_processor: Some(Arc::new(request_processor)),
         })
     }
 
@@ -247,7 +249,7 @@ impl SftpClient {
         &self,
         request: R,
     ) -> impl Future<Output = R::Reply> + Send + Sync + 'static {
-        let sent = if let Some(inner) = &self.inner {
+        let sent = if let Some(commands) = &self.commands {
             let msg = request.to_requets_message();
 
             if let Message::Status(status) = msg {
@@ -259,7 +261,7 @@ impl SftpClient {
                 }
             } else {
                 let (tx, rx) = oneshot::channel();
-                match inner.commands.send((msg, tx)) {
+                match commands.send((msg, tx)) {
                     Ok(()) => Ok(rx),
                     Err(err) => Err(StatusCode::Failure.to_message(err.to_string().into())),
                 }
@@ -280,16 +282,42 @@ impl SftpClient {
     }
 
     /// Stop the SFTP client.
-    pub async fn stop(&mut self) {
-        if let Some(inner) = std::mem::take(&mut self.inner) {
-            std::mem::drop(inner.commands);
-            _ = inner.request_processor.await;
+    ///
+    /// Close the SFTP session if the client is the last one of the session.
+    /// If the client is not the last one, or the client was already stopped,
+    /// The future will return immediately.
+    ///
+    /// # Cancel safety
+    ///
+    /// The stopping request is done before returning the future.
+    /// If the future is dropped before completion, it is safe to call it again
+    /// to wait that the client has actually stopped.
+    pub fn stop(&mut self) -> impl Future<Output = ()> + Drop + Send + Sync + '_ {
+        if let Some(a) = self.commands.take() {
+            std::mem::drop(a)
+        }
+
+        // Try to unwrap the join handle into the future
+        // This can happen only if the current client is the last client of the session
+        if let Some(request_processor) = self.request_processor.take() {
+            if let Ok(request_processor) = Arc::try_unwrap(request_processor) {
+                return SftpClientStopping {
+                    client: self,
+                    request_processor: Some(request_processor),
+                };
+            }
+        }
+
+        // If the current client is not the last of the session, nothing to wait
+        SftpClientStopping {
+            client: self,
+            request_processor: None,
         }
     }
 
     /// Check whether the client is stopped.
     pub fn is_stopped(&self) -> bool {
-        self.inner.is_none()
+        self.commands.is_none()
     }
 
     /// Close an opened file or directory.
@@ -444,10 +472,11 @@ impl SftpClient {
         filename: P,
         pflags: F,
         attrs: A,
-    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         let request = self.open_handle(filename, pflags, attrs);
+        let client = self.clone();
 
-        async move { Ok(File::new(self, request.await?)) }
+        async move { Ok(File::new(client, request.await?)) }
     }
 
     /// Open a file for reading or writing.
@@ -462,7 +491,7 @@ impl SftpClient {
         &self,
         filename: P,
         pflags: F,
-    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, pflags, Attrs::default())
     }
 
@@ -478,7 +507,7 @@ impl SftpClient {
         &self,
         filename: P,
         attrs: A,
-    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, PFlags::default(), attrs)
     }
 
@@ -492,7 +521,7 @@ impl SftpClient {
     pub fn open<P: Into<Path>>(
         &self,
         filename: P,
-    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + '_ {
+    ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, PFlags::default(), Attrs::default())
     }
 
@@ -746,6 +775,41 @@ impl std::fmt::Debug for SftpClient {
     }
 }
 
+/// Future for stopping a SftpClient
+struct SftpClientStopping<'a> {
+    client: &'a mut SftpClient,
+    request_processor: Option<JoinHandle<()>>,
+}
+
+impl Future for SftpClientStopping<'_> {
+    type Output = ();
+
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        if let Some(request_processor) = &mut self.request_processor {
+            tokio::pin!(request_processor);
+            _ = ready!(request_processor.poll(cx));
+        }
+
+        // Stopping has succeeded, so we can drop the JoinHandle
+        self.request_processor = None;
+        std::task::Poll::Ready(())
+    }
+}
+
+impl Drop for SftpClientStopping<'_> {
+    fn drop(&mut self) {
+        // If the stopping request was processing, we need to put back the JoinHandle
+        // into the client in case we need to await its stopping again
+        if let Some(request_processor) = self.request_processor.take() {
+            self.client.request_processor = Some(Arc::new(request_processor))
+        }
+    }
+}
+
+/// Convert the object to a SSH channel
 #[async_trait]
 pub trait ToSftpChannel {
     async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error>;
