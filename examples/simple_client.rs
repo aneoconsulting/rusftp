@@ -36,6 +36,7 @@ impl russh::client::Handler for Handler {
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     // You can start a sftp server configured for this client with the following command:
     //
     // docker run -v /tmp:/home/user/tmp -p 2222:22 --rm atmoz/sftp:alpine user:pass:1000
@@ -96,9 +97,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("> Remove directory");
     sftp.rmdir("/tmp/dir").await?;
 
+    println!("> Stat");
+    let cwd = sftp.stat(".");
+
     println!("> Stop sftp client");
     // optional, sftp is stopped when dropped
     sftp.stop().await;
+
+    println!("CWD: {:?}", cwd.await?);
 
     Ok(())
 }

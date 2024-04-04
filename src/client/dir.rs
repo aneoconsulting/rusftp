@@ -78,12 +78,18 @@ impl Dir {
             // If the dir was already closed, no need to close it
             None
         };
+        let mut client = std::mem::replace(&mut self.client, SftpClient::new_stopped());
 
         async move {
-            match future {
+            let response = match future {
                 Some(future) => future.await,
                 None => Ok(()),
-            }
+            };
+
+            // Avoid keeping the client alive until the directory is dropped
+            client.stop().await;
+
+            response
         }
     }
 }
