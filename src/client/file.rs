@@ -136,15 +136,15 @@ impl File {
     ///
     /// # Arguments
     ///
-    /// * `attrs` - New attributes to apply (convertible to [`Attrs`])
-    pub fn set_stat<A: Into<Attrs>>(
+    /// * `attrs` - New attributes to apply
+    pub fn set_stat(
         &self,
-        attrs: A,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FSetStat {
                 handle: handle.clone(),
-                attrs: attrs.into(),
+                attrs,
             }))
         } else {
             Err(StatusCode::Failure.to_status("File was already closed".into()))

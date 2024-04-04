@@ -28,26 +28,24 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `handle` - Handle of the file or the directory (convertible to [`Handle`])
-    pub fn close<H: Into<Handle>>(
+    /// * `handle` - Handle of the file or the directory
+    pub fn close(
         &self,
-        handle: H,
+        handle: Handle,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
-        self.request(Close {
-            handle: handle.into(),
-        })
+        self.request(Close { handle })
     }
 
     /// Send an extended request.
     ///
     /// # Arguments
     ///
-    /// * `request` - Extended-request name (format: `name@domain`, convertible to [`Bytes`])
-    /// * `data` - Specific data needed by the extension to intrepret the request (convertible to [`Bytes`])
-    pub fn extended<R: Into<Bytes>, D: Into<Bytes>>(
+    /// * `request` - Extended-request name (format: `name@domain`)
+    /// * `data` - Specific data needed by the extension to intrepret the request
+    pub fn extended(
         &self,
-        request: R,
-        data: D,
+        request: impl Into<Bytes>,
+        data: impl Into<Bytes>,
     ) -> impl Future<Output = Result<Bytes, Status>> + Send + Sync + 'static {
         let request = self.request(Extended {
             request: request.into(),
@@ -66,31 +64,26 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `handle` - Handle of the file or directory to change the attributes (convertible to [`Handle`])
-    /// * `attrs` - New attributes to apply (convertible to [`Attrs`])
-    pub fn fsetstat<H: Into<Handle>, A: Into<Attrs>>(
+    /// * `handle` - Handle of the file or directory to change the attributes
+    /// * `attrs` - New attributes to apply
+    pub fn fsetstat(
         &self,
-        handle: H,
-        attrs: A,
+        handle: Handle,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
-        self.request(FSetStat {
-            handle: handle.into(),
-            attrs: attrs.into(),
-        })
+        self.request(FSetStat { handle, attrs })
     }
 
     /// Read the attributes (metadata) of an open file or directory.
     ///
     /// # Arguments
     ///
-    /// * `handle` - Handle of the open file or directory (convertible to [`Handle`])
-    pub fn fstat<H: Into<Handle>>(
+    /// * `handle` - Handle of the open file or directory
+    pub fn fstat(
         &self,
-        handle: H,
+        handle: Handle,
     ) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
-        self.request(FStat {
-            handle: handle.into(),
-        })
+        self.request(FStat { handle })
     }
 
     /// Read the attributes (metadata) of a file or directory.
@@ -99,10 +92,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the file, directory, or symbolic link (convertible to [`Path`])
-    pub fn lstat<P: Into<Path>>(
+    /// * `path` - Path of the file, directory, or symbolic link
+    pub fn lstat(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
         self.request(LStat { path: path.into() })
     }
@@ -113,10 +106,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path where the new directory will be located (convertible to [`Path`])
-    pub fn mkdir<P: Into<Path>>(
+    /// * `path` - Path where the new directory will be located
+    pub fn mkdir(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.mkdir_with_attrs(path, Attrs::default())
     }
@@ -127,16 +120,16 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path where the new directory will be located (convertible to [`Path`])
-    /// * `attrs` - Default attributes to apply to the newly created directory (convertible to [`Attrs`])
-    pub fn mkdir_with_attrs<P: Into<Path>, A: Into<Attrs>>(
+    /// * `path` - Path where the new directory will be located
+    /// * `attrs` - Default attributes to apply to the newly created directory
+    pub fn mkdir_with_attrs(
         &self,
-        path: P,
-        attrs: A,
+        path: impl Into<Path>,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(MkDir {
             path: path.into(),
-            attrs: attrs.into(),
+            attrs,
         })
     }
 
@@ -146,19 +139,19 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the file to open (convertible to [`Path`])
-    /// * `pflags` - Flags for the file opening (convertible to [`PFlags`])
-    /// * `attrs` - Default file attributes to use upon file creation (convertible to [`Attrs`])
-    pub fn open_handle<P: Into<Path>, F: Into<PFlags>, A: Into<Attrs>>(
+    /// * `path` - Path of the file to open
+    /// * `pflags` - Flags for the file opening
+    /// * `attrs` - Default file attributes to use upon file creation
+    pub fn open_handle(
         &self,
-        filename: P,
-        pflags: F,
-        attrs: A,
+        filename: impl Into<Path>,
+        pflags: PFlags,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<Handle, Status>> + Send + Sync + 'static {
         self.request(Open {
             filename: filename.into(),
-            pflags: pflags.into(),
-            attrs: attrs.into(),
+            pflags,
+            attrs,
         })
     }
 
@@ -168,14 +161,14 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the file to open (convertible to [`Path`])
-    /// * `pflags` - Flags for the file opening (convertible to [`PFlags`])
-    /// * `attrs` - Default file attributes to use upon file creation (convertible to [`Attrs`])
-    pub fn open_with_flags_attrs<P: Into<Path>, F: Into<PFlags>, A: Into<Attrs>>(
+    /// * `path` - Path of the file to open
+    /// * `pflags` - Flags for the file opening
+    /// * `attrs` - Default file attributes to use upon file creation
+    pub fn open_with_flags_attrs(
         &self,
-        filename: P,
-        pflags: F,
-        attrs: A,
+        filename: impl Into<Path>,
+        pflags: PFlags,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         let request = self.open_handle(filename, pflags, attrs);
         let client = self.clone();
@@ -189,12 +182,12 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the file to open (convertible to [`Path`])
-    /// * `pflags` - Flags for the file opening (convertible to [`PFlags`])
-    pub fn open_with_flags<P: Into<Path>, F: Into<PFlags>>(
+    /// * `path` - Path of the file to open
+    /// * `pflags` - Flags for the file opening
+    pub fn open_with_flags(
         &self,
-        filename: P,
-        pflags: F,
+        filename: impl Into<Path>,
+        pflags: PFlags,
     ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, pflags, Attrs::default())
     }
@@ -205,12 +198,12 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the file to open (convertible to [`Path`])
-    /// * `attrs` - Default file attributes to use upon file creation (convertible to [`Attrs`])
-    pub fn open_with_attrs<P: Into<Path>, A: Into<Attrs>>(
+    /// * `path` - Path of the file to open
+    /// * `attrs` - Default file attributes to use upon file creation
+    pub fn open_with_attrs(
         &self,
-        filename: P,
-        attrs: A,
+        filename: impl Into<Path>,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, PFlags::default(), attrs)
     }
@@ -221,10 +214,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the file to open (convertible to [`Path`])
-    pub fn open<P: Into<Path>>(
+    /// * `path` - Path of the file to open
+    pub fn open(
         &self,
-        filename: P,
+        filename: impl Into<Path>,
     ) -> impl Future<Output = Result<File, Status>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, PFlags::default(), Attrs::default())
     }
@@ -238,10 +231,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the directory to open (convertible to [`Path`])
-    pub fn opendir_handle<P: Into<Path>>(
+    /// * `path` - Path of the directory to open
+    pub fn opendir_handle(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Handle, Status>> + Send + Sync + 'static {
         self.request(OpenDir { path: path.into() })
     }
@@ -253,10 +246,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path` - Path of the directory to open (convertible to [`Path`])
-    pub fn opendir<P: Into<Path>>(
+    /// * `path` - Path of the directory to open
+    pub fn opendir(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Dir, Status>> + Send + Sync + 'static {
         let request = self.request(OpenDir { path: path.into() });
         let client = self.clone();
@@ -268,17 +261,17 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `handle`: Handle of the file to read from (convertible to [`Handle`])
+    /// * `handle`: Handle of the file to read from
     /// * `offset`: Byte offset where the read should start
     /// * `length`: Number of bytes to read
-    pub fn read<H: Into<Handle>>(
+    pub fn read(
         &self,
-        handle: H,
+        handle: Handle,
         offset: u64,
         length: u32,
     ) -> impl Future<Output = Result<Bytes, Status>> + Send + Sync + 'static {
         let request = self.request(Read {
-            handle: handle.into(),
+            handle,
             offset,
             length,
         });
@@ -296,14 +289,12 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `handle`: Handle of the open directory (convertible to [`Handle`])
-    pub fn readdir_handle<H: Into<Handle>>(
+    /// * `handle`: Handle of the open directory
+    pub fn readdir_handle(
         &self,
-        handle: H,
+        handle: Handle,
     ) -> impl Future<Output = Result<Name, Status>> + Send + Sync + 'static {
-        self.request(ReadDir {
-            handle: handle.into(),
-        })
+        self.request(ReadDir { handle })
     }
 
     /// Read a directory listing.
@@ -312,10 +303,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path of the directory to list (convertible to [`Path`])
-    pub fn readdir<P: Into<Path>>(
+    /// * `path`: Path of the directory to list
+    pub fn readdir(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Name, Status>> + Send + Sync + 'static {
         let dir = self.request(OpenDir { path: path.into() });
         let client = self.clone();
@@ -347,10 +338,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path of the symbolic link to read (convertible to [`Path`])
-    pub fn readlink<P: Into<Path>>(
+    /// * `path`: Path of the symbolic link to read
+    pub fn readlink(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Path, Status>> + Send + Sync + 'static {
         let request = self.request(ReadLink { path: path.into() });
 
@@ -367,10 +358,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path to canonicalize (convertible to [`Path`])
-    pub fn realpath<P: Into<Path>>(
+    /// * `path`: Path to canonicalize
+    pub fn realpath(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Path, Status>> + Send + Sync + 'static {
         let request = self.request(RealPath { path: path.into() });
 
@@ -387,10 +378,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path of the file to remove (convertible to [`Path`])
-    pub fn remove<P: Into<Path>>(
+    /// * `path`: Path of the file to remove
+    pub fn remove(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(Remove { path: path.into() })
     }
@@ -399,12 +390,12 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `old_path`: Current path of the file or directory to rename/move (convertible to [`Path`])
-    /// * `new_path`: New path where the file or directory will be moved to (convertible to [`Path`])
-    pub fn rename<O: Into<Path>, N: Into<Path>>(
+    /// * `old_path`: Current path of the file or directory to rename/move
+    /// * `new_path`: New path where the file or directory will be moved to
+    pub fn rename(
         &self,
-        old_path: O,
-        new_path: N,
+        old_path: impl Into<Path>,
+        new_path: impl Into<Path>,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(Rename {
             old_path: old_path.into(),
@@ -420,10 +411,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path of the directory to remove (convertible to [`Path`])
-    pub fn rmdir<P: Into<Path>>(
+    /// * `path`: Path of the directory to remove
+    pub fn rmdir(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(RmDir { path: path.into() })
     }
@@ -438,16 +429,16 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path of the file or directory to change the attributes (convertible to [`Path`])
-    /// * `attrs`: New attributes to apply (convertible to [`Attrs`])
-    pub fn setstat<P: Into<Path>, A: Into<Attrs>>(
+    /// * `path`: Path of the file or directory to change the attributes
+    /// * `attrs`: New attributes to apply
+    pub fn setstat(
         &self,
-        path: P,
-        attrs: A,
+        path: impl Into<Path>,
+        attrs: Attrs,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(SetStat {
             path: path.into(),
-            attrs: attrs.into(),
+            attrs,
         })
     }
 
@@ -457,10 +448,10 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `path`: Path of the file or directory (convertible to [`Path`])
-    pub fn stat<P: Into<Path>>(
+    /// * `path`: Path of the file or directory
+    pub fn stat(
         &self,
-        path: P,
+        path: impl Into<Path>,
     ) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
         self.request(Stat { path: path.into() })
     }
@@ -469,12 +460,12 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `link_path`: Path name of the symbolic link to be created (convertible to [`Path`])
-    /// * `target_path`: Target of the symbolic link (convertible to [`Path`])
-    pub fn symlink<L: Into<Path>, T: Into<Path>>(
+    /// * `link_path`: Path name of the symbolic link to be created
+    /// * `target_path`: Target of the symbolic link
+    pub fn symlink(
         &self,
-        link_path: L,
-        target_path: T,
+        link_path: impl Into<Path>,
+        target_path: impl Into<Path>,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(Symlink {
             link_path: link_path.into(),
@@ -486,19 +477,19 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `handle`: Handle of the file to write to (convertible to [`Handle`])
+    /// * `handle`: Handle of the file to write to
     /// * `offset`: Byte offset where the write should start
     /// * `data`: Bytes to be written to the file
-    pub fn write<H: Into<Handle>, D: Into<Bytes>>(
+    pub fn write(
         &self,
-        handle: H,
+        handle: Handle,
         offset: u64,
-        data: D,
+        data: impl Into<Data>,
     ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
         self.request(Write {
-            handle: handle.into(),
+            handle,
             offset,
-            data: Data(data.into()),
+            data: data.into(),
         })
     }
 }
