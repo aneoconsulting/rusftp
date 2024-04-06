@@ -27,6 +27,40 @@ impl SftpClient {
     /// In case a reply is the status `OK`, the empty tuple is returned instead: `()`.
     ///
     /// You can implement your own extension requests by implementing [`SftpRequest`].
+    ///
+    /// # Arguments
+    ///
+    /// * `request`: SFTP Request to be sent
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
+    ///
+    /// # Implementation examples
+    ///
+    /// ```ignore
+    /// async fn request(&self, request: Message) -> Result<Message, Error>;
+    /// async fn request(&self, request: Open) -> Result<Handle, Error>;
+    /// async fn request(&self, request: Close) -> Result<(), Error>;
+    /// async fn request(&self, request: Read) -> Result<Data, Error>;
+    /// async fn request(&self, request: Write) -> Result<(), Error>;
+    /// async fn request(&self, request: LStat) -> Result<Attrs, Error>;
+    /// async fn request(&self, request: FStat) -> Result<Attrs, Error>;
+    /// async fn request(&self, request: SetStat) -> Result<(), Error>;
+    /// async fn request(&self, request: FSetStat) -> Result<(), Error>;
+    /// async fn request(&self, request: OpenDir) -> Result<Handle, Error>;
+    /// async fn request(&self, request: ReadDir) -> Result<Name, Error>;
+    /// async fn request(&self, request: Remove) -> Result<(), Error>;
+    /// async fn request(&self, request: MkDir) -> Result<(), Error>;
+    /// async fn request(&self, request: RmDir) -> Result<(), Error>;
+    /// async fn request(&self, request: RealPath) -> Result<Name, Error>;
+    /// async fn request(&self, request: Stat) -> Result<Attrs, Error>;
+    /// async fn request(&self, request: Rename) -> Result<(), Error>;
+    /// async fn request(&self, request: ReadLink) -> Result<Name, Error>;
+    /// async fn request(&self, request: Symlink) -> Result<(), Error>;
+    /// async fn request(&self, request: Extended) -> Result<ExtendedReply, Error>;
+    /// ```
     pub fn request<R: SftpRequest>(
         &self,
         request: R,

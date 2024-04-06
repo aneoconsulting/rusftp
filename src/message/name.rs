@@ -27,15 +27,15 @@ use crate::message::{Attrs, Path};
 
 /// Arbitrary byte string containing the requested data.
 ///
-/// The data string may be at most the number of bytes requested in a [`Read`](crate::Read) request,
+/// The data string may be at most the number of bytes requested in a [`Read`](crate::message::Read) request,
 /// but may also be shorter if end of file is reached or if the read is from something other than a regular file.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NameEntry {
     /// Path of the file or directory designated by this entry
     ///
-    /// for [`ReadDir`](crate::ReadDir), it will be a relative name within the directory, without any path components.
+    /// for [`ReadDir`](crate::message::ReadDir), it will be a relative name within the directory, without any path components.
     ///
-    /// for [`RealPath`](crate::RealPath) it will be an absolute path name.
+    /// for [`RealPath`](crate::message::RealPath) it will be an absolute path name.
     pub filename: Path,
 
     /// Expanded format of the filename with permissions and owner, à-la `ls -l`.
@@ -53,7 +53,7 @@ pub struct NameEntry {
 
 /// Arbitrary byte string containing the requested data.
 ///
-/// The data string may be at most the number of bytes requested in a [`Read`](crate::Read) request,
+/// The data string may be at most the number of bytes requested in a [`Read`](crate::message::Read) request,
 /// but may also be shorter if end of file is reached or if the read is from something other than a regular file.
 ///
 /// internal: `SSH_FXP_DATA`

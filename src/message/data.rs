@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 /// Arbitrary byte string containing the requested data.
 ///
-/// The data string may be at most the number of bytes requested in a [`Read`](crate::Read) request,
+/// The data string may be at most the number of bytes requested in a [`Read`](crate::message::Read) request,
 /// but may also be shorter if end of file is reached or if the read is from something other than a regular file.
 ///
 /// internal: `SSH_FXP_DATA`

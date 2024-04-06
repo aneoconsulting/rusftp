@@ -19,11 +19,11 @@ use serde::{Deserialize, Serialize};
 
 /// Generic request for an extension.
 ///
-/// It may be answered with [`ExtendedReply`](crate::ExtendedReply) in case of success
-/// and [`Status`](crate::Status) in case of failure.
+/// It may be answered with [`ExtendedReply`](crate::message::ExtendedReply) in case of success
+/// and [`Status`](crate::message::Status) in case of failure.
 ///
 /// If the server does not recognize the request,
-/// then the server MUST respond with [`Status`](crate::Status) with status set to `OpUnsupported`.
+/// then the server MUST respond with [`Status`](crate::message::Status) with status set to `OpUnsupported`.
 ///
 /// internal: `SSH_FXP_EXTENDED`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

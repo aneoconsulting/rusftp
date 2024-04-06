@@ -20,8 +20,8 @@ use crate::message::{Attrs, Path};
 
 /// Request to open a file for reading or writing.
 ///
-/// It is answered with [`Handle`](crate::Handle) in case of success
-/// and [`Status`](crate::Status) in case of failure.
+/// It is answered with [`Handle`](crate::message::Handle) in case of success
+/// and [`Status`](crate::message::Status) in case of failure.
 ///
 /// internal: `SSH_FXP_OPEN`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

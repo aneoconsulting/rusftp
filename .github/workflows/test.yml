@@ -118,6 +118,10 @@ jobs:
       - name: Format
         run: |
           cargo fmt --all --check
+      - name: Doc
+        if: matrix.target.os == 'linux'
+        run: |
+          RUSTDOCFLAGS="-Dwarnings" cargo doc
       - name: Clippy
         run: |
           cargo clippy --all --no-deps -- -Dwarnings -Dunused-crate-dependencies

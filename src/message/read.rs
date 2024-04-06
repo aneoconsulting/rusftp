@@ -20,8 +20,8 @@ use crate::message::Handle;
 
 /// Request to read a portion of an opened file.
 ///
-/// It is answered with [`Data`](crate::Data) in case of success
-/// and [`Status`](crate::Status) in case of failure.
+/// It is answered with [`Data`](crate::message::Data) in case of success
+/// and [`Status`](crate::message::Status) in case of failure.
 ///
 /// internal: `SSH_FXP_READ`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

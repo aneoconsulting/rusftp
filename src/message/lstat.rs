@@ -22,8 +22,8 @@ use crate::message::Path;
 ///
 /// [`LStat`] follows symbolic links.
 ///
-/// It is answered with [`Attrs`](crate::Attrs) in case of success
-/// and [`Status`](crate::Status) in case of failure.
+/// It is answered with [`Attrs`](crate::message::Attrs) in case of success
+/// and [`Status`](crate::message::Status) in case of failure.
 ///
 /// internal: `SSH_FXP_LSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
