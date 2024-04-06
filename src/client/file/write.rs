@@ -16,9 +16,40 @@
 
 use std::{pin::Pin, task::ready, task::Poll};
 
-use crate::{Close, Handle, Write};
+use futures::Future;
+
+use crate::{ClientError, Close, Data, Handle, Write};
 
 use super::{File, OperationResult, PendingOperation};
+
+impl File {
+    /// Write to a portion of the file.
+    ///
+    /// # Arguments
+    ///
+    /// * `offset`: Byte offset where the write should start
+    /// * `data`: Bytes to be written to the file
+    pub fn write(
+        &self,
+        offset: u64,
+        data: impl Into<Data>,
+    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+        let future = if let Some(handle) = &self.handle {
+            Ok(self.client.request(Write {
+                handle: Handle::clone(handle),
+                offset,
+                data: data.into(),
+            }))
+        } else {
+            Err(ClientError::Io(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "File was already closed",
+            )))
+        };
+
+        async move { future?.await }
+    }
+}
 
 impl tokio::io::AsyncWrite for File {
     fn poll_write(
