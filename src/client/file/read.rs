@@ -27,10 +27,21 @@ use super::{File, OperationResult, PendingOperation};
 impl File {
     /// Read a portion of the file.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn read(&self, offset: u64, length: u32) -> Result<Bytes, Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `offset`: Byte offset where the read should start
     /// * `length`: Number of bytes to read
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn read(
         &self,
         offset: u64,

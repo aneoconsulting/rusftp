@@ -32,7 +32,13 @@ impl Dir {
     }
 
     /// Close the remote directory.
-    ///.
+    ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn close(&self) -> Result<(), Error>;
+    /// ```
+    ///
     /// If the directory has already been closed,
     /// The future will return immediately.
     ///

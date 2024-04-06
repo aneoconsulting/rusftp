@@ -26,10 +26,21 @@ use super::{File, OperationResult, PendingOperation};
 impl File {
     /// Write to a portion of the file.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn write(&self, offset: u64, data: impl Into<Data>) -> Result<(), Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `offset`: Byte offset where the write should start
     /// * `data`: Bytes to be written to the file
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn write(
         &self,
         offset: u64,

@@ -27,9 +27,20 @@ use crate::message::{
 impl SftpClient {
     /// Close an opened file or directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn close(&self, handle: Handle) -> Result<(), Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `handle` - Handle of the file or the directory
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn close(
         &self,
         handle: Handle,
@@ -39,10 +50,21 @@ impl SftpClient {
 
     /// Send an extended request.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn extended(&self, request: impl Into<Bytes>, data: impl Into<Bytes>) -> Result<Bytes, Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `request` - Extended-request name (format: `name@domain`)
     /// * `data` - Specific data needed by the extension to intrepret the request
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn extended(
         &self,
         request: impl Into<Bytes>,
@@ -57,6 +79,12 @@ impl SftpClient {
 
     /// Change the attributes (metadata) of an open file or directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn fsetstat(&self, handle: Handle, attrs: Attrs) -> Result<(), Error>;
+    /// ```
+    ///
     /// This operation is used for operations such as changing the ownership,
     /// permissions or access times, as well as for truncating a file.
     ///
@@ -67,6 +95,11 @@ impl SftpClient {
     ///
     /// * `handle` - Handle of the file or directory to change the attributes
     /// * `attrs` - New attributes to apply
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn fsetstat(
         &self,
         handle: Handle,
@@ -77,9 +110,20 @@ impl SftpClient {
 
     /// Read the attributes (metadata) of an open file or directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn fstat(&self, handle: Handle) -> Result<Attrs, Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `handle` - Handle of the open file or directory
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn fstat(
         &self,
         handle: Handle,
@@ -89,11 +133,22 @@ impl SftpClient {
 
     /// Read the attributes (metadata) of a file or directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn lstat(&self, path: impl Into<Path>) -> Result<Attrs, Error>;
+    /// ```
+    ///
     /// Symbolic links are followed.
     ///
     /// # Arguments
     ///
     /// * `path` - Path of the file, directory, or symbolic link
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn lstat(
         &self,
         path: impl Into<Path>,
@@ -103,11 +158,22 @@ impl SftpClient {
 
     /// Create a new directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn mkdir(&self, path: impl Into<Path>) -> Result<(), Error>;
+    /// ```
+    ///
     /// An error will be returned if a file or directory with the specified path already exists.
     ///
     /// # Arguments
     ///
     /// * `path` - Path where the new directory will be located
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn mkdir(
         &self,
         path: impl Into<Path>,
@@ -117,12 +183,23 @@ impl SftpClient {
 
     /// Create a new directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn mkdir_with_attrs(&self, path: impl Into<Path>, attrs: Attrs) -> Result<(), Error>;
+    /// ```
+    ///
     /// An error will be returned if a file or directory with the specified path already exists.
     ///
     /// # Arguments
     ///
     /// * `path` - Path where the new directory will be located
     /// * `attrs` - Default attributes to apply to the newly created directory
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn mkdir_with_attrs(
         &self,
         path: impl Into<Path>,
@@ -136,6 +213,12 @@ impl SftpClient {
 
     /// Open a file for reading or writing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn open_handle(&self, filename: impl Into<Path>, pflags: PFlags, attrs: Attrs) -> Result<Handle, Error>;
+    /// ```
+    ///
     /// Returns an [`Handle`] for the file specified.
     ///
     /// # Arguments
@@ -143,6 +226,11 @@ impl SftpClient {
     /// * `path` - Path of the file to open
     /// * `pflags` - Flags for the file opening
     /// * `attrs` - Default file attributes to use upon file creation
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn open_handle(
         &self,
         filename: impl Into<Path>,
@@ -158,6 +246,12 @@ impl SftpClient {
 
     /// Open a file for reading or writing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn open_with_flags_attrs(&self, filename: impl Into<Path>, pflags: PFlags, attrs: Attrs) -> Result<File, Error>;
+    /// ```
+    ///
     /// Returns a [`File`] object that is compatible with [`tokio::io`].
     ///
     /// # Arguments
@@ -165,6 +259,11 @@ impl SftpClient {
     /// * `path` - Path of the file to open
     /// * `pflags` - Flags for the file opening
     /// * `attrs` - Default file attributes to use upon file creation
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn open_with_flags_attrs(
         &self,
         filename: impl Into<Path>,
@@ -179,12 +278,23 @@ impl SftpClient {
 
     /// Open a file for reading or writing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn open_with_flags(&self, filename: impl Into<Path>, pflags: PFlags) -> Result<File, Error>;
+    /// ```
+    ///
     /// Returns a [`File`] object that is compatible with [`tokio::io`].
     ///
     /// # Arguments
     ///
     /// * `path` - Path of the file to open
     /// * `pflags` - Flags for the file opening
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn open_with_flags(
         &self,
         filename: impl Into<Path>,
@@ -195,12 +305,23 @@ impl SftpClient {
 
     /// Open a file for reading or writing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn open_with_attrs(&self, filename: impl Into<Path>, attrs: Attrs) -> Result<File, Error>;
+    /// ```
+    ///
     /// Returns a [`File`] object that is compatible with [`tokio::io`].
     ///
     /// # Arguments
     ///
     /// * `path` - Path of the file to open
     /// * `attrs` - Default file attributes to use upon file creation
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn open_with_attrs(
         &self,
         filename: impl Into<Path>,
@@ -211,11 +332,22 @@ impl SftpClient {
 
     /// Open a file for reading or writing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn open(&self, filename: impl Into<Path>) -> Result<File, Error>;
+    /// ```
+    ///
     /// Returns a [`File`] object that is compatible with [`tokio::io`].
     ///
     /// # Arguments
     ///
     /// * `path` - Path of the file to open
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn open(
         &self,
         filename: impl Into<Path>,
@@ -225,6 +357,12 @@ impl SftpClient {
 
     /// Open a directory for listing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn opendir_handle(&self, path: impl Into<Path>) -> Result<Handle, Error>;
+    /// ```
+    ///
     /// Once the directory has been successfully opened, files (and directories)
     /// contained in it can be listed using `readdir_handle`.
     ///
@@ -233,6 +371,11 @@ impl SftpClient {
     /// # Arguments
     ///
     /// * `path` - Path of the directory to open
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn opendir_handle(
         &self,
         path: impl Into<Path>,
@@ -242,12 +385,23 @@ impl SftpClient {
 
     /// Open a directory for listing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn opendir(&self, path: impl Into<Path>) -> Result<Dir, Error>;
+    /// ```
+    ///
     /// Returns a [`Dir`] for the directory specified.
     /// It implements [`Stream<Item = Result<NameEntry, ...>>`](futures::stream::Stream).
     ///
     /// # Arguments
     ///
     /// * `path` - Path of the directory to open
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn opendir(
         &self,
         path: impl Into<Path>,
@@ -260,11 +414,22 @@ impl SftpClient {
 
     /// Read a portion of an opened file.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn read(&self, handle: Handle, offset: u64, length: u32) -> Result<Bytes, Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `handle`: Handle of the file to read from
     /// * `offset`: Byte offset where the read should start
     /// * `length`: Number of bytes to read
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn read(
         &self,
         handle: Handle,
@@ -282,6 +447,12 @@ impl SftpClient {
 
     /// Read a directory listing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn readdir_handle(&self, handle: Handle) -> Result<Name, Error>;
+    /// ```
+    ///
     /// Each `readdir_handle` returns one or more file names with full file attributes for each file.
     /// The client should call `readdir_handle` repeatedly until it has found the file it is looking for
     /// or until the server responds with a [`Status`] message indicating an error
@@ -291,6 +462,11 @@ impl SftpClient {
     /// # Arguments
     ///
     /// * `handle`: Handle of the open directory
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn readdir_handle(
         &self,
         handle: Handle,
@@ -300,11 +476,22 @@ impl SftpClient {
 
     /// Read a directory listing.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn readdir(&self, path: impl Into<Path>) -> Result<Name, Error>;
+    /// ```
+    ///
     /// If you need an asynchronous [`Stream`](futures::stream::Stream), you can use `opendir()` instead
     ///
     /// # Arguments
     ///
     /// * `path`: Path of the directory to list
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn readdir(
         &self,
         path: impl Into<Path>,
@@ -337,9 +524,20 @@ impl SftpClient {
 
     /// Read the target of a symbolic link.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn readlink(&self, path: impl Into<Path>) -> Result<Path, Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `path`: Path of the symbolic link to read
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn readlink(
         &self,
         path: impl Into<Path>,
@@ -361,9 +559,20 @@ impl SftpClient {
 
     /// Canonicalize a path.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn realpath(&self, path: impl Into<Path>) -> Result<Path, Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `path`: Path to canonicalize
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn realpath(
         &self,
         path: impl Into<Path>,
@@ -385,9 +594,20 @@ impl SftpClient {
 
     /// Remove a file.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn remove(&self, path: impl Into<Path>) -> Result<(), Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `path`: Path of the file to remove
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn remove(
         &self,
         path: impl Into<Path>,
@@ -397,10 +617,21 @@ impl SftpClient {
 
     /// Rename/move a file or a directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn rename(&self, old_path: impl Into<Path>, new_path: impl Into<Path>) -> Result<(), Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `old_path`: Current path of the file or directory to rename/move
     /// * `new_path`: New path where the file or directory will be moved to
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn rename(
         &self,
         old_path: impl Into<Path>,
@@ -414,6 +645,12 @@ impl SftpClient {
 
     /// Remove an existing directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn rmdir(&self, path: impl Into<Path>) -> Result<(), Error>;
+    /// ```
+    ///
     /// An error will be returned if no directory with the specified path exists,
     /// or if the specified directory is not empty, or if the path specified
     /// a file system object other than a directory.
@@ -421,6 +658,11 @@ impl SftpClient {
     /// # Arguments
     ///
     /// * `path`: Path of the directory to remove
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn rmdir(
         &self,
         path: impl Into<Path>,
@@ -429,6 +671,12 @@ impl SftpClient {
     }
 
     /// Change the attributes (metadata) of a file or directory.
+    ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn setstat(&self, path: impl Into<Path>, attrs: Attrs) -> Result<(), Error>;
+    /// ```
     ///
     /// This request is used for operations such as changing the ownership,
     /// permissions or access times, as well as for truncating a file.
@@ -440,6 +688,11 @@ impl SftpClient {
     ///
     /// * `path`: Path of the file or directory to change the attributes
     /// * `attrs`: New attributes to apply
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn setstat(
         &self,
         path: impl Into<Path>,
@@ -453,11 +706,22 @@ impl SftpClient {
 
     /// Read the attributes (metadata) of a file or directory.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn stat(&self, path: impl Into<Path>) -> Result<Attrs, Error>;
+    /// ```
+    ///
     /// Symbolic links *are not* followed.
     ///
     /// # Arguments
     ///
     /// * `path`: Path of the file or directory
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn stat(
         &self,
         path: impl Into<Path>,
@@ -467,10 +731,21 @@ impl SftpClient {
 
     /// Create a symbolic link.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn symlink(&self, link_path: impl Into<Path>, target_path: impl Into<Path>) -> Result<(), Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `link_path`: Path name of the symbolic link to be created
     /// * `target_path`: Target of the symbolic link
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn symlink(
         &self,
         link_path: impl Into<Path>,
@@ -484,11 +759,22 @@ impl SftpClient {
 
     /// Write to a portion of an opened file.
     ///
+    /// Equivalent to:
+    ///
+    /// ```ignore
+    /// async fn write(&self, handle: Handle, offset: u64, data: impl Into<Data>,) -> Result<(), Error>;
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `handle`: Handle of the file to write to
     /// * `offset`: Byte offset where the write should start
     /// * `data`: Bytes to be written to the file
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
     pub fn write(
         &self,
         handle: Handle,
