@@ -14,6 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Collection of all SFTP messages.
+//!
+//! This module defines all the SFTP messages defined by the SFTP protocol RFC version 3.
+//! See: <https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02>
+//!
+//! Each message has its own type, and the type [`Message`] is an `enum` of all messages
+
 use std::borrow::Cow;
 
 use bytes::{Buf, BufMut, Bytes};

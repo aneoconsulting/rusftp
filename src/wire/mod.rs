@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Encoder/Decoder module for the SFTP wire format.
+
 mod decoder;
 mod encoder;
 mod error;
