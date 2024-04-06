@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Handle;
+use crate::message::Handle;
 
 /// Request to read the attributes (metadata) of an open file or directory.
 ///
@@ -32,8 +32,8 @@ pub struct FStat {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
         Handle,
     };
 

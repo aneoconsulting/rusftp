@@ -21,7 +21,7 @@ use russh::{client::Msg, Channel, ChannelMsg};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use crate::{message, Message, StatusCode};
+use crate::message::{Init, Message, StatusCode, Version};
 
 mod commands;
 mod dir;
@@ -32,7 +32,7 @@ mod request;
 mod stop;
 
 pub use dir::{Dir, DIR_CLOSED};
-pub use error::ClientError;
+pub use error::Error;
 pub use file::{File, FILE_CLOSED};
 pub use request::SftpRequest;
 use stop::SftpClientStopping;
@@ -59,7 +59,7 @@ use stop::SftpClientStopping;
 /// ssh.authenticate_password("user", "pass").await?;
 ///
 /// // Create SFTP client
-/// let sftp = rusftp::SftpClient::new(&ssh).await?;
+/// let sftp = rusftp::client::SftpClient::new(&ssh).await?;
 /// println!("stat '.': {:?}", sftp.stat(".").await?);
 /// # Ok(())
 /// # }
@@ -87,17 +87,17 @@ impl SftpClient {
     /// `ssh` can be a [`russh::Channel<Msg>`])
     /// or a [`russh::client::Handler`].
     /// In case of the handler, it can be moved or borrowed.
-    pub async fn new<T: ToSftpChannel>(ssh: T) -> Result<Self, ClientError> {
+    pub async fn new<T: ToSftpChannel>(ssh: T) -> Result<Self, Error> {
         Self::with_channel(ssh.to_sftp_channel().await?).await
     }
 
     /// Creates a new client from a [`russh::Channel<Msg>`].
-    pub async fn with_channel(mut channel: Channel<Msg>) -> Result<Self, ClientError> {
+    pub async fn with_channel(mut channel: Channel<Msg>) -> Result<Self, Error> {
         // Start SFTP subsystem
         channel.request_subsystem(false, "sftp").await?;
 
         // Init SFTP handshake
-        let init_message = Message::Init(message::Init {
+        let init_message = Message::Init(Init {
             version: 3,
             extensions: Default::default(),
         });
@@ -112,7 +112,7 @@ impl SftpClient {
                         // Valid response: continue
                         Ok((
                             _,
-                            Message::Version(message::Version {
+                            Message::Version(Version {
                                 version: 3,
                                 extensions: _,
                             }),
@@ -164,26 +164,26 @@ impl std::fmt::Debug for SftpClient {
 /// Convert the object to a SSH channel
 #[async_trait]
 pub trait ToSftpChannel {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError>;
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, Error>;
 }
 
 #[async_trait]
 impl ToSftpChannel for Channel<Msg> {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, Error> {
         Ok(self)
     }
 }
 
 #[async_trait]
 impl<H: russh::client::Handler> ToSftpChannel for &russh::client::Handle<H> {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, Error> {
         self.channel_open_session().await.map_err(Into::into)
     }
 }
 
 #[async_trait]
 impl<H: russh::client::Handler> ToSftpChannel for russh::client::Handle<H> {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, Error> {
         (&self).to_sftp_channel().await
     }
 }

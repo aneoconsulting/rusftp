@@ -21,7 +21,7 @@ use std::task::ready;
 
 use tokio::task::JoinHandle;
 
-use crate::SftpClient;
+use crate::client::SftpClient;
 
 impl SftpClient {
     /// Stop the SFTP client.

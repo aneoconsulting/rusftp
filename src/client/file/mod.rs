@@ -23,7 +23,8 @@ use std::{
 
 use bytes::Bytes;
 
-use crate::{message, Attrs, ClientError, Handle, SftpClient};
+use crate::client::{Error, SftpClient};
+use crate::message::{self, Attrs, Handle};
 
 mod close;
 mod read;
@@ -85,13 +86,13 @@ pub static FILE_CLOSED: File = File {
 
 impl File {
     /// Read the attributes (metadata) of the file.
-    pub fn stat(&self) -> impl Future<Output = Result<Attrs, ClientError>> + Send + Sync + 'static {
+    pub fn stat(&self) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FStat {
                 handle: Handle::clone(handle),
             }))
         } else {
-            Err(ClientError::Io(std::io::Error::new(
+            Err(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))
@@ -114,14 +115,14 @@ impl File {
     pub fn set_stat(
         &self,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FSetStat {
                 handle: Handle::clone(handle),
                 attrs,
             }))
         } else {
-            Err(ClientError::Io(std::io::Error::new(
+            Err(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))

@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Path;
+use crate::message::Path;
 
 /// Request to create a symbolic link.
 ///
@@ -33,11 +33,11 @@ pub struct Symlink {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Path,
     };
+    use crate::wire::Error;
 
     use super::Symlink;
     use bytes::Bytes;
@@ -60,7 +60,7 @@ mod test {
         for i in 0..SYMLINK_VALID.len() {
             assert_eq!(
                 fail_decode::<Symlink>(&SYMLINK_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

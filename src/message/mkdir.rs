@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Attrs, Path};
+use crate::message::{Attrs, Path};
 
 /// Request to create a new directory.
 ///
@@ -35,11 +35,11 @@ pub struct MkDir {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Attrs, Path,
     };
+    use crate::wire::Error;
 
     use super::MkDir;
     use bytes::Bytes;
@@ -65,7 +65,7 @@ mod test {
         for i in 0..MKDIR_VALID.len() {
             assert_eq!(
                 fail_decode::<MkDir>(&MKDIR_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

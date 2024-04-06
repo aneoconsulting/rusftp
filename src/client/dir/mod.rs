@@ -16,7 +16,8 @@
 
 use std::{future::Future, pin::Pin};
 
-use crate::{ClientError, Handle, Name, SftpClient};
+use crate::client::{Error, SftpClient};
+use crate::message::{Handle, Name};
 
 mod close;
 mod stream;
@@ -29,8 +30,7 @@ pub struct Dir {
     pending: Option<PendingOperation>,
 }
 
-type PendingOperation =
-    Pin<Box<dyn Future<Output = Result<Name, ClientError>> + Send + Sync + 'static>>;
+type PendingOperation = Pin<Box<dyn Future<Output = Result<Name, Error>> + Send + Sync + 'static>>;
 
 impl Dir {
     /// Create a directory from a raw [`Handle`].

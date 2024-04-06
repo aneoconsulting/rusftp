@@ -18,7 +18,8 @@ use std::{pin::Pin, task::ready, task::Poll};
 
 use futures::Future;
 
-use crate::{ClientError, Close, Data, Handle, Write};
+use crate::client::Error;
+use crate::message::{Close, Data, Handle, Write};
 
 use super::{File, OperationResult, PendingOperation};
 
@@ -33,7 +34,7 @@ impl File {
         &self,
         offset: u64,
         data: impl Into<Data>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(Write {
                 handle: Handle::clone(handle),
@@ -41,7 +42,7 @@ impl File {
                 data: data.into(),
             }))
         } else {
-            Err(ClientError::Io(std::io::Error::new(
+            Err(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))

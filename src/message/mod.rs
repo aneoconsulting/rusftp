@@ -19,7 +19,7 @@ use std::borrow::Cow;
 use bytes::{Buf, BufMut, Bytes};
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
-use crate::wire::{SftpDecoder, SftpEncoder, WireFormatError};
+use crate::wire::{Error, SftpDecoder, SftpEncoder};
 
 mod attrs;
 mod close;
@@ -314,7 +314,7 @@ impl Message {
     pub fn code(&self) -> u8 {
         self.kind().code()
     }
-    pub fn encode(&self, id: u32) -> Result<Bytes, WireFormatError> {
+    pub fn encode(&self, id: u32) -> Result<Bytes, Error> {
         let mut encoder = SftpEncoder::with_vec(Vec::with_capacity(16));
 
         // Reserve space for frame length
@@ -334,7 +334,7 @@ impl Message {
         Ok(encoder.buf.into())
     }
 
-    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), WireFormatError> {
+    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), Error> {
         let frame_length = buf.get_u32() as usize;
 
         // Limit the read to this very frame

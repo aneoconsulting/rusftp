@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Path;
+use crate::message::Path;
 
 /// Request to rename/move a file or a directory.
 ///
@@ -33,11 +33,11 @@ pub struct Rename {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Path,
     };
+    use crate::wire::Error;
 
     use super::Rename;
     use bytes::Bytes;
@@ -60,7 +60,7 @@ mod test {
         for i in 0..RENAME_VALID.len() {
             assert_eq!(
                 fail_decode::<Rename>(&RENAME_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

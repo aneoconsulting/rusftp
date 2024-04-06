@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Path;
+use crate::message::Path;
 
 /// Request to canonicalize a path.
 ///
@@ -34,8 +34,8 @@ pub struct RealPath {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
         Path,
     };
 

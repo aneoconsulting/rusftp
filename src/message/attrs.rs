@@ -245,7 +245,7 @@ impl<'de> Deserialize<'de> for Attrs {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode, ATTRS_VALID},
-        wire::WireFormatError,
+        wire::Error,
     };
 
     use super::Attrs;
@@ -261,16 +261,13 @@ mod test {
     fn decode_failure() {
         for (_, encoded) in ATTRS_VALID {
             for i in 0..encoded.len() - 1 {
-                assert_eq!(
-                    fail_decode::<Attrs>(&encoded[..i]),
-                    WireFormatError::NotEnoughData
-                );
+                assert_eq!(fail_decode::<Attrs>(&encoded[..i]), Error::NotEnoughData);
             }
         }
 
         assert_eq!(
             fail_decode::<Attrs>(b"\0\0\x01\0"),
-            WireFormatError::Custom("invalid attr".to_string())
+            Error::Custom("invalid attr".to_string())
         );
     }
 }

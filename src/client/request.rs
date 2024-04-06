@@ -18,7 +18,8 @@ use std::future::Future;
 
 use tokio::sync::oneshot;
 
-use crate::{message, ClientError, Message, SftpClient, Status, StatusCode};
+use crate::client::{Error, SftpClient};
+use crate::message::{self, Message, Status, StatusCode};
 
 impl SftpClient {
     /// Send a SFTP request, and return its reply.
@@ -29,7 +30,7 @@ impl SftpClient {
     pub fn request<R: SftpRequest>(
         &self,
         request: R,
-    ) -> impl Future<Output = Result<R::Reply, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<R::Reply, Error>> + Send + Sync + 'static {
         let sent = if let Some(commands) = &self.commands {
             match request.to_request_message() {
                 Ok(Message::Status(Status {
@@ -67,13 +68,6 @@ impl SftpClient {
                 )
                 .into()),
             }
-            // let msg = match sent {
-            //     Ok(rx) => rx.await.unwrap_or(
-            //         StatusCode::Failure.to_message("Could not get reply from SFTP client".into()),
-            //     ),
-            //     Err(err) => err,
-            // };
-            // R::from_reply_message(msg)
         }
     }
 }
@@ -84,23 +78,23 @@ pub trait SftpRequest {
     type Reply;
 
     /// Convert the request type into an actual SFTP message
-    fn to_request_message(self) -> Result<Message, ClientError>;
+    fn to_request_message(self) -> Result<Message, Error>;
 
     /// Convert the reply message into the decoded Reply type
     ///
     /// The message can contain an Error status.
     /// If so, it is recommended to return the error as-is.
-    fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError>;
+    fn from_reply_message(msg: Message) -> Result<Self::Reply, Error>;
 }
 
 impl SftpRequest for Message {
     type Reply = Message;
 
-    fn to_request_message(self) -> Result<Message, ClientError> {
+    fn to_request_message(self) -> Result<Message, Error> {
         Ok(self)
     }
 
-    fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError> {
+    fn from_reply_message(msg: Message) -> Result<Self::Reply, Error> {
         Ok(msg)
     }
 }
@@ -110,14 +104,14 @@ macro_rules! send_impl {
         impl SftpRequest for message::$input {
             type Reply = ();
 
-            fn to_request_message(self) -> Result<Message, ClientError> {
+            fn to_request_message(self) -> Result<Message, Error> {
                 Ok(self.into())
             }
 
-            fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError> {
+            fn from_reply_message(msg: Message) -> Result<Self::Reply, Error> {
                 match msg {
                     Message::Status(status) => status.to_result(()),
-                    _ => Err(message::StatusCode::BadMessage
+                    _ => Err(StatusCode::BadMessage
                         .to_status("Expected a status".into())),
                 }.map_err(Into::into)
             }
@@ -127,15 +121,15 @@ macro_rules! send_impl {
         impl SftpRequest for message::$input {
             type Reply = message::$output;
 
-            fn to_request_message(self) -> Result<Message, ClientError> {
+            fn to_request_message(self) -> Result<Message, Error> {
                 Ok(self.into())
             }
 
-            fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError> {
+            fn from_reply_message(msg: Message) -> Result<Self::Reply, Error> {
                 match msg {
                     Message::$output(response) => Ok(response),
                     Message::Status(status) => Err(status),
-                    _ => Err(message::StatusCode::BadMessage
+                    _ => Err(StatusCode::BadMessage
                         .to_status(std::stringify!(Expected a $output or a status).into())),
                 }.map_err(Into::into)
             }

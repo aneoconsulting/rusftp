@@ -18,7 +18,7 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::Message;
+use crate::message::Message;
 
 /// Status code of an operation.
 ///
@@ -201,7 +201,7 @@ mod test {
 
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+        wire::Error,
     };
 
     use super::{Status, StatusCode};
@@ -239,7 +239,7 @@ mod test {
         for i in 0..STATUS_VALID.len() {
             assert_eq!(
                 fail_decode::<Status>(&STATUS_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

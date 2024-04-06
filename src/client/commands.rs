@@ -17,10 +17,11 @@
 use bytes::Bytes;
 use futures::Future;
 
-use crate::{
-    Attrs, ClientError, Close, Data, Dir, Extended, FSetStat, FStat, File, Handle, LStat, MkDir,
-    Name, Open, OpenDir, PFlags, Path, Read, ReadDir, ReadLink, RealPath, Remove, Rename, RmDir,
-    SetStat, SftpClient, Stat, Status, StatusCode, Symlink, Write,
+use crate::client::{Dir, Error, File, SftpClient, StatusCode};
+use crate::message::{
+    Attrs, Close, Data, Extended, FSetStat, FStat, Handle, LStat, MkDir, Name, Open, OpenDir,
+    PFlags, Path, Read, ReadDir, ReadLink, RealPath, Remove, Rename, RmDir, SetStat, Stat, Status,
+    Symlink, Write,
 };
 
 impl SftpClient {
@@ -32,7 +33,7 @@ impl SftpClient {
     pub fn close(
         &self,
         handle: Handle,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(Close { handle })
     }
 
@@ -46,7 +47,7 @@ impl SftpClient {
         &self,
         request: impl Into<Bytes>,
         data: impl Into<Bytes>,
-    ) -> impl Future<Output = Result<Bytes, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Bytes, Error>> + Send + Sync + 'static {
         let request = self.request(Extended {
             request: request.into(),
             data: data.into(),
@@ -70,7 +71,7 @@ impl SftpClient {
         &self,
         handle: Handle,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(FSetStat { handle, attrs })
     }
 
@@ -82,7 +83,7 @@ impl SftpClient {
     pub fn fstat(
         &self,
         handle: Handle,
-    ) -> impl Future<Output = Result<Attrs, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
         self.request(FStat { handle })
     }
 
@@ -96,7 +97,7 @@ impl SftpClient {
     pub fn lstat(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Attrs, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
         self.request(LStat { path: path.into() })
     }
 
@@ -110,7 +111,7 @@ impl SftpClient {
     pub fn mkdir(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.mkdir_with_attrs(path, Attrs::default())
     }
 
@@ -126,7 +127,7 @@ impl SftpClient {
         &self,
         path: impl Into<Path>,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(MkDir {
             path: path.into(),
             attrs,
@@ -147,7 +148,7 @@ impl SftpClient {
         filename: impl Into<Path>,
         pflags: PFlags,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<Handle, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Handle, Error>> + Send + Sync + 'static {
         self.request(Open {
             filename: filename.into(),
             pflags,
@@ -169,7 +170,7 @@ impl SftpClient {
         filename: impl Into<Path>,
         pflags: PFlags,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<File, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
         let request = self.open_handle(filename, pflags, attrs);
         let client = self.clone();
 
@@ -188,7 +189,7 @@ impl SftpClient {
         &self,
         filename: impl Into<Path>,
         pflags: PFlags,
-    ) -> impl Future<Output = Result<File, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, pflags, Attrs::default())
     }
 
@@ -204,7 +205,7 @@ impl SftpClient {
         &self,
         filename: impl Into<Path>,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<File, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, PFlags::default(), attrs)
     }
 
@@ -218,7 +219,7 @@ impl SftpClient {
     pub fn open(
         &self,
         filename: impl Into<Path>,
-    ) -> impl Future<Output = Result<File, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
         self.open_with_flags_attrs(filename, PFlags::default(), Attrs::default())
     }
 
@@ -235,7 +236,7 @@ impl SftpClient {
     pub fn opendir_handle(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Handle, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Handle, Error>> + Send + Sync + 'static {
         self.request(OpenDir { path: path.into() })
     }
 
@@ -250,7 +251,7 @@ impl SftpClient {
     pub fn opendir(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Dir, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Dir, Error>> + Send + Sync + 'static {
         let request = self.request(OpenDir { path: path.into() });
         let client = self.clone();
 
@@ -269,7 +270,7 @@ impl SftpClient {
         handle: Handle,
         offset: u64,
         length: u32,
-    ) -> impl Future<Output = Result<Bytes, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Bytes, Error>> + Send + Sync + 'static {
         let request = self.request(Read {
             handle,
             offset,
@@ -293,7 +294,7 @@ impl SftpClient {
     pub fn readdir_handle(
         &self,
         handle: Handle,
-    ) -> impl Future<Output = Result<Name, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Name, Error>> + Send + Sync + 'static {
         self.request(ReadDir { handle })
     }
 
@@ -307,7 +308,7 @@ impl SftpClient {
     pub fn readdir(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Name, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Name, Error>> + Send + Sync + 'static {
         let dir = self.request(OpenDir { path: path.into() });
         let client = self.clone();
         let mut entries = Name::default();
@@ -318,7 +319,7 @@ impl SftpClient {
             loop {
                 match client.readdir_handle(handle.clone()).await {
                     Ok(mut chunk) => entries.0.append(&mut chunk.0),
-                    Err(ClientError::Sftp(Status {
+                    Err(Error::Sftp(Status {
                         code: StatusCode::Eof,
                         ..
                     })) => break,
@@ -342,16 +343,16 @@ impl SftpClient {
     pub fn readlink(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Path, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Path, Error>> + Send + Sync + 'static {
         let request = self.request(ReadLink { path: path.into() });
 
         async move {
             match request.await?.as_mut() {
-                [] => Err(ClientError::Sftp(
+                [] => Err(Error::Sftp(
                     StatusCode::BadMessage.to_status("No entry".into()),
                 )),
                 [entry] => Ok(std::mem::take(entry).filename),
-                _ => Err(ClientError::Sftp(
+                _ => Err(Error::Sftp(
                     StatusCode::BadMessage.to_status("Multiple entries".into()),
                 )),
             }
@@ -366,16 +367,16 @@ impl SftpClient {
     pub fn realpath(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Path, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Path, Error>> + Send + Sync + 'static {
         let request = self.request(RealPath { path: path.into() });
 
         async move {
             match request.await?.as_mut() {
-                [] => Err(ClientError::Sftp(
+                [] => Err(Error::Sftp(
                     StatusCode::BadMessage.to_status("No entry".into()),
                 )),
                 [entry] => Ok(std::mem::take(entry).filename),
-                _ => Err(ClientError::Sftp(
+                _ => Err(Error::Sftp(
                     StatusCode::BadMessage.to_status("Multiple entries".into()),
                 )),
             }
@@ -390,7 +391,7 @@ impl SftpClient {
     pub fn remove(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(Remove { path: path.into() })
     }
 
@@ -404,7 +405,7 @@ impl SftpClient {
         &self,
         old_path: impl Into<Path>,
         new_path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(Rename {
             old_path: old_path.into(),
             new_path: new_path.into(),
@@ -423,7 +424,7 @@ impl SftpClient {
     pub fn rmdir(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(RmDir { path: path.into() })
     }
 
@@ -443,7 +444,7 @@ impl SftpClient {
         &self,
         path: impl Into<Path>,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(SetStat {
             path: path.into(),
             attrs,
@@ -460,7 +461,7 @@ impl SftpClient {
     pub fn stat(
         &self,
         path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Attrs, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
         self.request(Stat { path: path.into() })
     }
 
@@ -474,7 +475,7 @@ impl SftpClient {
         &self,
         link_path: impl Into<Path>,
         target_path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(Symlink {
             link_path: link_path.into(),
             target_path: target_path.into(),
@@ -493,7 +494,7 @@ impl SftpClient {
         handle: Handle,
         offset: u64,
         data: impl Into<Data>,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
         self.request(Write {
             handle,
             offset,

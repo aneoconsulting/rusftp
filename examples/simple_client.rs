@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
-use rusftp::PFlags;
+use rusftp::{client::SftpClient, message::PFlags};
 
 struct Handler;
 
@@ -48,7 +48,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ssh.authenticate_password("user", "pass").await?;
 
     println!("> Start SFTP client");
-    let mut sftp = rusftp::SftpClient::new(ssh).await?;
+    let mut sftp = SftpClient::new(ssh).await?;
 
     println!("> Create a directory");
     sftp.mkdir("/tmp/dir").await?;
