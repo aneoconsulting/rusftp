@@ -190,6 +190,9 @@ impl PendingOperation {
             }
         };
 
+        // Polling has finished, resetting pending
+        *self = PendingOperation::None;
+
         Poll::Ready(result)
     }
 }

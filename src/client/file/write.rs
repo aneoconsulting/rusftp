@@ -67,7 +67,6 @@ impl tokio::io::AsyncWrite for File {
         // Poll is ready, adjust the offset according to the number of bytes written
         match result {
             Ok(len) => {
-                self.pending = PendingOperation::None;
                 self.offset += len as u64;
                 std::task::Poll::Ready(Ok(len))
             }

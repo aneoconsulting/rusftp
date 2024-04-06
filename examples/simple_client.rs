@@ -17,6 +17,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::StreamExt;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use rusftp::PFlags;
@@ -85,14 +86,23 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("realpath: {:?}", sftp.realpath("/tmp/dir/link").await?);
 
     println!("> Read dir");
-    for entry in sftp.readdir("/tmp/dir").await? {
-        println!("{:?}", entry);
+    let mut dir = sftp.opendir("/tmp/dir").await?;
+
+    while let Some(entry) = dir.next().await {
+        println!("{:?}", entry?);
     }
+
+    dir.close().await?;
 
     println!("> Remove both file and link");
     let (a, b) = tokio::join!(sftp.remove("/tmp/dir/link"), sftp.remove("/tmp/dummy.txt"));
     a?;
     b?;
+
+    println!("> Read dir");
+    for entry in sftp.readdir("/tmp/dir").await? {
+        println!("{:?}", entry);
+    }
 
     println!("> Remove directory");
     sftp.rmdir("/tmp/dir").await?;

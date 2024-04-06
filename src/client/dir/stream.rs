@@ -27,7 +27,7 @@ impl futures::Stream for Dir {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        // If end of file reached, resturn None
+        // If end of file reached, return None
         let Some(buffer) = &mut self.buffer else {
             return std::task::Poll::Ready(None);
         };
@@ -38,7 +38,9 @@ impl futures::Stream for Dir {
         }
 
         let result = match &mut self.pending {
-            Some(pending) => ready!(pending.as_mut().poll(cx)),
+            Some(pending) => {
+                ready!(pending.as_mut().poll(cx))
+            }
             None => {
                 let Some(handle) = &self.handle else {
                     // Force end of iteration
@@ -58,6 +60,9 @@ impl futures::Stream for Dir {
                 ready!(pending.as_mut().poll(cx))
             }
         };
+
+        // Polling has finished, resetting pending
+        self.pending = None;
 
         // If the read was successful, the buffer will be populated again
         // Stop the iteration otherwise

@@ -72,8 +72,6 @@ impl tokio::io::AsyncRead for File {
         // Poll is ready, write to the buffer if it is a success
         match result {
             Ok(data) => {
-                self.pending = PendingOperation::None;
-
                 if data.is_empty() {
                     std::task::Poll::Ready(Ok(()))
                 } else {
