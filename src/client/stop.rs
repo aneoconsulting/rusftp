@@ -36,31 +36,7 @@ impl SftpClient {
     /// If the future is dropped before completion, it is safe to call it again
     /// to wait that the client has actually stopped.
     pub fn stop(&mut self) -> impl Future<Output = ()> + Drop + Send + Sync + '_ {
-        self.stop_request()
-    }
-
-    fn stop_request(&mut self) -> SftpClientStopping<'_> {
-        if let Some(a) = self.commands.take() {
-            std::mem::drop(a)
-        }
-
-        // Try to unwrap the join handle into the future
-        // This can happen only if the current client is the last client of the session
-        if let Some(request_processor) = self.request_processor.take() {
-            if let Ok(request_processor) = Arc::try_unwrap(request_processor) {
-                log::trace!("Waiting for client to stop");
-                return SftpClientStopping {
-                    client: self,
-                    request_processor: Some(request_processor),
-                };
-            }
-        }
-
-        // If the current client is not the last of the session, nothing to wait
-        SftpClientStopping {
-            client: self,
-            request_processor: None,
-        }
+        SftpClientStopping::new(self)
     }
 
     /// Check whether the client is stopped.
@@ -71,19 +47,47 @@ impl SftpClient {
 
 impl Drop for SftpClient {
     fn drop(&mut self) {
-        let stop = self.stop_request();
+        let stop = SftpClientStopping::new(self);
 
         // Avoid nested execution
-        if stop.request_processor.is_some() {
+        if !stop.is_stopped() {
             futures::executor::block_on(stop);
         }
     }
 }
 
 /// Future for stopping a SftpClient
-struct SftpClientStopping<'a> {
+pub(super) struct SftpClientStopping<'a> {
     client: &'a mut SftpClient,
     request_processor: Option<JoinHandle<()>>,
+}
+
+impl<'a> SftpClientStopping<'a> {
+    pub(super) fn new(client: &'a mut SftpClient) -> SftpClientStopping<'_> {
+        client.commands = None;
+
+        // Try to unwrap the join handle into the future
+        // This can happen only if the current client is the last client of the session
+        if let Some(request_processor) = client.request_processor.take() {
+            if let Some(request_processor) = Arc::into_inner(request_processor) {
+                log::trace!("Waiting for client to stop");
+                return SftpClientStopping {
+                    client,
+                    request_processor: Some(request_processor),
+                };
+            }
+        }
+
+        // If the current client is not the last of the session, nothing to wait
+        SftpClientStopping {
+            client,
+            request_processor: None,
+        }
+    }
+
+    pub(super) fn is_stopped(&self) -> bool {
+        self.request_processor.is_none()
+    }
 }
 
 impl Future for SftpClientStopping<'_> {

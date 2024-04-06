@@ -17,30 +17,30 @@
 use std::{
     future::Future,
     pin::Pin,
-    task::{ready, Poll},
+    task::{ready, Poll}, sync::Arc,
 };
 
 use bytes::Bytes;
 
 use crate::{message, Attrs, ClientError, Handle, SftpClient};
 
+mod close;
 mod read;
 mod seek;
 mod write;
 
-/// File accessible remotely with SFTP
+/// File accessible remotely with SFTP.
+///
+/// The file can be cloned, and the cloned file will point
+/// to the same remote file, with the same native handle.
+///
+/// The remote file will be closed when all references to it have been dropped.
 #[derive(Debug)]
 pub struct File {
     client: SftpClient,
-    handle: Option<Handle>,
+    handle: Option<Arc<Handle>>,
     offset: u64,
     pending: PendingOperation,
-}
-
-impl Drop for File {
-    fn drop(&mut self) {
-        _ = futures::executor::block_on(self.close());
-    }
 }
 
 impl File {
@@ -56,7 +56,7 @@ impl File {
     pub fn new(client: SftpClient, handle: Handle) -> Self {
         File {
             client,
-            handle: Some(handle),
+            handle: Some(Arc::new(handle)),
             offset: 0,
             pending: PendingOperation::None,
         }
@@ -83,41 +83,11 @@ pub static FILE_CLOSED: File = File {
 };
 
 impl File {
-    /// Check whether the file is closed
-    pub fn is_closed(&self) -> bool {
-        self.handle.is_none()
-    }
-
-    /// Close the remote file
-    pub fn close(
-        &mut self,
-    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
-        let future = if let Some(handle) = std::mem::take(&mut self.handle) {
-            Some(self.client.request(message::Close { handle }))
-        } else {
-            // If the file was already closed, no need to close it
-            None
-        };
-        let mut client = std::mem::replace(&mut self.client, SftpClient::new_stopped());
-
-        async move {
-            let response = match future {
-                Some(future) => future.await,
-                None => Ok(()),
-            };
-
-            // Avoid keeping the client alive until the file is dropped
-            client.stop().await;
-
-            response
-        }
-    }
-
     /// Read the attributes (metadata) of the file.
     pub fn stat(&self) -> impl Future<Output = Result<Attrs, ClientError>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FStat {
-                handle: handle.clone(),
+                handle: Handle::clone(handle),
             }))
         } else {
             Err(ClientError::Io(std::io::Error::new(
@@ -146,7 +116,7 @@ impl File {
     ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FSetStat {
-                handle: handle.clone(),
+                handle: Handle::clone(handle),
                 attrs,
             }))
         } else {

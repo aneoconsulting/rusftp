@@ -35,6 +35,7 @@ pub use dir::{Dir, DIR_CLOSED};
 pub use error::ClientError;
 pub use file::{File, FILE_CLOSED};
 pub use request::SftpRequest;
+use stop::SftpClientStopping;
 
 /// SFTP client
 ///

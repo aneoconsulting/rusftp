@@ -18,7 +18,7 @@ use std::{task::ready, task::Poll};
 
 use bytes::Bytes;
 
-use crate::{ClientError, Status, StatusCode};
+use crate::{ClientError, Handle, Status, StatusCode};
 
 use super::{File, OperationResult, PendingOperation};
 
@@ -34,12 +34,13 @@ impl tokio::io::AsyncRead for File {
             // The pending operation was not a read, so we must start reading
             _ => {
                 // Get the current handle, valid only if the file is not closed
-                let Some(handle) = self.handle.clone() else {
+                let Some(handle) = &self.handle else {
                     return Poll::Ready(Err(std::io::Error::new(
                         std::io::ErrorKind::BrokenPipe,
                         "File was closed",
                     )));
                 };
+                let handle = Handle::clone(handle);
 
                 // Spawn the read future
                 let read = self.client.request(crate::Read {

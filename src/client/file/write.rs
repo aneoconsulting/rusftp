@@ -16,7 +16,7 @@
 
 use std::{pin::Pin, task::ready, task::Poll};
 
-use crate::{Close, Write};
+use crate::{Close, Handle, Write};
 
 use super::{File, OperationResult, PendingOperation};
 
@@ -32,12 +32,13 @@ impl tokio::io::AsyncWrite for File {
             // The pending operation was not a write, so we must start writing
             _ => {
                 // Get the current handle, valid only if the file is not closed
-                let Some(handle) = self.handle.clone() else {
+                let Some(handle) = &self.handle else {
                     return Poll::Ready(Err(std::io::Error::new(
                         std::io::ErrorKind::BrokenPipe,
                         "File was closed",
                     )));
                 };
+                let handle = Handle::clone(handle);
                 let length = buf.len().min(32768); // write at most 32K
 
                 // Spawn the write future
@@ -100,9 +101,10 @@ impl tokio::io::AsyncWrite for File {
             // The pending operation was not a close, so we must start closing
             _ => {
                 // Get the current handle, valid only if the file is not closed
-                let Some(handle) = self.handle.clone() else {
+                let Some(handle) = &self.handle else {
                     return Poll::Ready(Ok(()));
                 };
+                let handle = Handle::clone(handle);
 
                 // Spawn the close future
                 let close = self.client.request(Close { handle });
