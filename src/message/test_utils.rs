@@ -2,7 +2,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 
 use crate::{
-    decoder::SftpDecoder, encoder::SftpEncoder, Attrs, Owner, Permisions, Time, WireFormatError,
+    wire::{SftpDecoder, SftpEncoder, WireFormatError},
+    Attrs, Owner, Permisions, Time,
 };
 
 pub(crate) fn encode_decode<T>(value: T, expected: &[u8])

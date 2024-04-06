@@ -245,7 +245,7 @@ impl<'de> Deserialize<'de> for Attrs {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode, ATTRS_VALID},
-        WireFormatError,
+        wire::WireFormatError,
     };
 
     use super::Attrs;

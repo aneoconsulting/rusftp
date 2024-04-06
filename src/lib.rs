@@ -15,13 +15,10 @@
 // limitations under the License.
 
 mod client;
-mod error;
 mod message;
 
-pub mod decoder;
-pub mod encoder;
+pub mod wire;
 
 pub use client::*;
-pub use error::WireFormatError;
 pub use message::*;
 pub use russh;

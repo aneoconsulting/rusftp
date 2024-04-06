@@ -37,7 +37,8 @@ pub struct Write {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Data, Handle, WireFormatError,
+        wire::WireFormatError,
+        Data, Handle,
     };
 
     use super::Write;

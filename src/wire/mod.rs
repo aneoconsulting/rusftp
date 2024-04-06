@@ -14,5 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod wire_format;
-pub use wire_format::WireFormatError;
+mod decoder;
+mod encoder;
+mod error;
+
+pub use decoder::SftpDecoder;
+pub use encoder::SftpEncoder;
+pub use error::WireFormatError;

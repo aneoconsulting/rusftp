@@ -38,7 +38,8 @@ pub struct Read {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Handle, WireFormatError,
+        wire::WireFormatError,
+        Handle,
     };
 
     use super::Read;

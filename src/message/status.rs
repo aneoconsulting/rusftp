@@ -18,7 +18,7 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::Message;
+use crate::{wire::WireFormatError, Message};
 
 /// Status code of an operation.
 ///
@@ -239,8 +239,8 @@ impl From<russh::Error> for Status {
     }
 }
 
-impl From<crate::WireFormatError> for Status {
-    fn from(error: crate::WireFormatError) -> Self {
+impl From<WireFormatError> for Status {
+    fn from(error: WireFormatError) -> Self {
         Self {
             code: StatusCode::BadMessage,
             error: error.to_string().into(),
@@ -275,7 +275,7 @@ mod test {
 
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        WireFormatError,
+        wire::WireFormatError,
     };
 
     use super::{Status, StatusCode};

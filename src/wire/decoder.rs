@@ -20,7 +20,7 @@ use serde::{
     Deserializer,
 };
 
-use crate::WireFormatError;
+use super::WireFormatError;
 
 /// Serde decoder for the SFTP wire format.
 pub struct SftpDecoder<'de> {
