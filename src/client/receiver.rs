@@ -20,23 +20,21 @@ use bytes::Buf;
 use russh::{client::Msg, Channel, ChannelMsg};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::{Message, StatusCode};
+use crate::{ClientError, Message};
+
+pub(super) type Response = Result<Message, ClientError>;
+pub(super) struct Request(pub(super) Message, pub(super) oneshot::Sender<Response>);
 
 pub(super) struct Receiver {
-    onflight: HashMap<u32, oneshot::Sender<Message>>,
+    onflight: HashMap<u32, oneshot::Sender<Response>>,
     next_id: u32,
-    commands: mpsc::UnboundedReceiver<(Message, oneshot::Sender<Message>)>,
+    commands: mpsc::UnboundedReceiver<Request>,
     channel: Channel<Msg>,
 }
 
 impl Receiver {
     /// Create a new receiver
-    pub(super) fn new(
-        channel: Channel<Msg>,
-    ) -> (
-        Self,
-        mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>,
-    ) {
+    pub(super) fn new(channel: Channel<Msg>) -> (Self, mpsc::UnboundedSender<Request>) {
         let (tx, rx) = mpsc::unbounded_channel();
         (
             Self {
@@ -57,7 +55,7 @@ impl Receiver {
                 // New request to send
                 request = self.commands.recv() => {
                     // If received null, the commands channel has been closed
-                    let Some((message, tx)) = request else {
+                    let Some(Request(message, tx)) = request else {
                         log::debug!("Command channel closed");
                         break;
                     };
@@ -96,7 +94,7 @@ impl Receiver {
     }
 
     /// Process a command request
-    async fn process_command(&mut self, message: Message, tx: oneshot::Sender<Message>) {
+    async fn process_command(&mut self, message: Message, tx: oneshot::Sender<Response>) {
         self.next_id += 1;
         let id = self.next_id;
 
@@ -109,12 +107,12 @@ impl Receiver {
                 }
                 Err(err) => {
                     log::debug!("Could not send request #{id}: {err:?}");
-                    send_message(tx, err);
+                    send_message(tx, Err(err.into()));
                 }
             },
             Err(err) => {
                 log::debug!("Could not encode request #{id}: {err:?}");
-                send_message(tx, err);
+                send_message(tx, Err(err.into()));
             }
         }
     }
@@ -125,7 +123,7 @@ impl Receiver {
             Ok((id, message)) => {
                 log::trace!("Response #{id}: {message:?}");
                 if let Some(tx) = self.onflight.remove(&id) {
-                    send_message(tx, message);
+                    send_message(tx, Ok(message));
                 } else {
                     log::error!("SFTP Error: Received a reply with an invalid id");
                 }
@@ -135,14 +133,7 @@ impl Receiver {
                 if let Some(mut buf) = data.get(5..9) {
                     let id = buf.get_u32();
                     if let Some(tx) = self.onflight.remove(&id) {
-                        send_message(
-                            tx,
-                            Message::Status(crate::Status {
-                                code: StatusCode::BadMessage,
-                                error: err.to_string().into(),
-                                language: "en".into(),
-                            }),
-                        );
+                        send_message(tx, Err(err.into()));
                     } else {
                         log::error!("SFTP Error: Received a reply with an invalid id");
                     }
@@ -154,8 +145,8 @@ impl Receiver {
     }
 }
 
-fn send_message(tx: oneshot::Sender<Message>, msg: impl Into<Message>) {
-    match tx.send(msg.into()) {
+fn send_message(tx: oneshot::Sender<Response>, msg: Response) {
+    match tx.send(msg) {
         Ok(()) => (),
         Err(err) => {
             log::error!("Could not send back message to client: {err:?}");

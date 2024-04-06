@@ -18,19 +18,21 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use russh::{client::Msg, Channel, ChannelMsg};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use crate::{message, Message};
+use crate::{message, Message, StatusCode};
 
 mod commands;
 mod dir;
+mod error;
 mod file;
 mod receiver;
 mod request;
 mod stop;
 
 pub use dir::{Dir, DIR_CLOSED};
+pub use error::ClientError;
 pub use file::{File, FILE_CLOSED};
 pub use request::SftpRequest;
 
@@ -63,7 +65,7 @@ pub use request::SftpRequest;
 /// ```
 #[derive(Default, Clone)]
 pub struct SftpClient {
-    commands: Option<mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>>,
+    commands: Option<mpsc::UnboundedSender<receiver::Request>>,
     request_processor: Option<Arc<JoinHandle<()>>>,
 }
 
@@ -84,38 +86,22 @@ impl SftpClient {
     /// `ssh` can be a [`russh::Channel<Msg>`])
     /// or a [`russh::client::Handler`].
     /// In case of the handler, it can be moved or borrowed.
-    pub async fn new<T: ToSftpChannel>(ssh: T) -> Result<Self, std::io::Error> {
+    pub async fn new<T: ToSftpChannel>(ssh: T) -> Result<Self, ClientError> {
         Self::with_channel(ssh.to_sftp_channel().await?).await
     }
 
     /// Creates a new client from a [`russh::Channel<Msg>`].
-    pub async fn with_channel(mut channel: Channel<Msg>) -> Result<Self, std::io::Error> {
+    pub async fn with_channel(mut channel: Channel<Msg>) -> Result<Self, ClientError> {
         // Start SFTP subsystem
-        match channel.request_subsystem(false, "sftp").await {
-            Ok(_) => (),
-            Err(russh::Error::IO(err)) => {
-                return Err(err);
-            }
-            Err(err) => {
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
-            }
-        }
+        channel.request_subsystem(false, "sftp").await?;
 
         // Init SFTP handshake
         let init_message = Message::Init(message::Init {
             version: 3,
             extensions: Default::default(),
         });
-        let init_frame = init_message
-            .encode(0)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?;
-        channel.data(init_frame.as_ref()).await.map_err(|e| {
-            if let russh::Error::IO(io_err) = e {
-                io_err
-            } else {
-                std::io::Error::new(std::io::ErrorKind::Other, e)
-            }
-        })?;
+        let init_frame = init_message.encode(0)?;
+        channel.data(init_frame.as_ref()).await?;
 
         // Check handshake response
         loop {
@@ -133,19 +119,17 @@ impl SftpClient {
 
                         // Invalid responses: abort
                         Ok((_, Message::Version(_))) => {
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "Invalid sftp version",
-                            ));
+                            return Err(StatusCode::BadMessage
+                                .to_status("Invalid sftp version".into())
+                                .into());
                         }
                         Ok(_) => {
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "Bad SFTP init",
-                            ));
+                            return Err(StatusCode::BadMessage
+                                .to_status("Bad SFTP init".into())
+                                .into());
                         }
                         Err(err) => {
-                            return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
+                            return Err(err.into());
                         }
                     }
                 }
@@ -153,10 +137,9 @@ impl SftpClient {
                 Some(_) => (),
                 // Channel has been closed
                 None => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Failed to start SFTP subsystem",
-                    ));
+                    return Err(StatusCode::BadMessage
+                        .to_status("Failed to start SFTP subsystem".into())
+                        .into());
                 }
             }
         }
@@ -180,30 +163,26 @@ impl std::fmt::Debug for SftpClient {
 /// Convert the object to a SSH channel
 #[async_trait]
 pub trait ToSftpChannel {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error>;
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError>;
 }
 
 #[async_trait]
 impl ToSftpChannel for Channel<Msg> {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError> {
         Ok(self)
     }
 }
 
 #[async_trait]
 impl<H: russh::client::Handler> ToSftpChannel for &russh::client::Handle<H> {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error> {
-        match self.channel_open_session().await {
-            Ok(channel) => Ok(channel),
-            Err(russh::Error::IO(err)) => Err(err),
-            Err(err) => Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
-        }
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError> {
+        self.channel_open_session().await.map_err(Into::into)
     }
 }
 
 #[async_trait]
 impl<H: russh::client::Handler> ToSftpChannel for russh::client::Handle<H> {
-    async fn to_sftp_channel(self) -> Result<Channel<Msg>, std::io::Error> {
+    async fn to_sftp_channel(self) -> Result<Channel<Msg>, ClientError> {
         (&self).to_sftp_channel().await
     }
 }

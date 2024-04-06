@@ -18,7 +18,7 @@ use std::future::Future;
 
 use tokio::sync::oneshot;
 
-use crate::{message, Message, SftpClient, StatusCode};
+use crate::{message, ClientError, Message, SftpClient, Status, StatusCode};
 
 impl SftpClient {
     /// Send a SFTP request, and return its reply.
@@ -29,36 +29,51 @@ impl SftpClient {
     pub fn request<R: SftpRequest>(
         &self,
         request: R,
-    ) -> impl Future<Output = R::Reply> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<R::Reply, ClientError>> + Send + Sync + 'static {
         let sent = if let Some(commands) = &self.commands {
-            let msg = request.to_requets_message();
-
-            if let Message::Status(status) = msg {
-                if status.is_ok() {
-                    Err(StatusCode::BadMessage
-                        .to_message("Tried to send an OK status message to the server".into()))
-                } else {
-                    Err(Message::Status(status))
+            match request.to_request_message() {
+                Ok(Message::Status(Status {
+                    code: StatusCode::Ok,
+                    ..
+                })) => Err(StatusCode::BadMessage
+                    .to_status("Tried to send an OK status message to the server".into())
+                    .into()),
+                Ok(Message::Status(status)) => Err(status.into()),
+                Ok(msg) => {
+                    let (tx, rx) = oneshot::channel();
+                    match commands.send(super::receiver::Request(msg, tx)) {
+                        Ok(()) => Ok(rx),
+                        Err(err) => {
+                            Err(StatusCode::Failure.to_status(err.to_string().into()).into())
+                        }
+                    }
                 }
-            } else {
-                let (tx, rx) = oneshot::channel();
-                match commands.send((msg, tx)) {
-                    Ok(()) => Ok(rx),
-                    Err(err) => Err(StatusCode::Failure.to_message(err.to_string().into())),
-                }
+                Err(err) => Err(err),
             }
         } else {
-            Err(StatusCode::Failure.to_message("SFTP client has been stopped".into()))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "SFTP client has been stopped",
+            )
+            .into())
         };
 
         async move {
-            let msg = match sent {
-                Ok(rx) => rx.await.unwrap_or(
-                    StatusCode::Failure.to_message("Could not get reply from SFTP client".into()),
-                ),
-                Err(err) => err,
-            };
-            R::from_reply_message(msg)
+            match sent?.await {
+                Ok(msg) => R::from_reply_message(msg?),
+                Err(_) => Err(std::io::Error::new(
+                    std::io::ErrorKind::ConnectionReset,
+                    "Could not get reply from SFTP client",
+                )
+                .into()),
+            }
+            // let msg = match sent {
+            //     Ok(rx) => rx.await.unwrap_or(
+            //         StatusCode::Failure.to_message("Could not get reply from SFTP client".into()),
+            //     ),
+            //     Err(err) => err,
+            // };
+            // R::from_reply_message(msg)
         }
     }
 }
@@ -66,65 +81,63 @@ impl SftpClient {
 /// Defines how a request is performed and how the reply is interpreted.
 pub trait SftpRequest {
     /// Decoded type of the reply
-    ///
-    /// It is recommended to return a [`Result<T, Status>`]
     type Reply;
 
     /// Convert the request type into an actual SFTP message
-    fn to_requets_message(self) -> Message;
+    fn to_request_message(self) -> Result<Message, ClientError>;
 
     /// Convert the reply message into the decoded Reply type
     ///
     /// The message can contain an Error status.
     /// If so, it is recommended to return the error as-is.
-    fn from_reply_message(msg: Message) -> Self::Reply;
+    fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError>;
 }
 
 impl SftpRequest for Message {
     type Reply = Message;
 
-    fn to_requets_message(self) -> Message {
-        self
+    fn to_request_message(self) -> Result<Message, ClientError> {
+        Ok(self)
     }
 
-    fn from_reply_message(msg: Message) -> Self::Reply {
-        msg
+    fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError> {
+        Ok(msg)
     }
 }
 
 macro_rules! send_impl {
     ($input:ident) => {
         impl SftpRequest for message::$input {
-            type Reply = Result<(), message::Status>;
+            type Reply = ();
 
-            fn to_requets_message(self) -> Message {
-                self.into()
+            fn to_request_message(self) -> Result<Message, ClientError> {
+                Ok(self.into())
             }
 
-            fn from_reply_message(msg: Message) -> Self::Reply {
+            fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError> {
                 match msg {
                     Message::Status(status) => status.to_result(()),
                     _ => Err(message::StatusCode::BadMessage
                         .to_status("Expected a status".into())),
-                }
+                }.map_err(Into::into)
             }
         }
     };
     ($input:ident -> $output:ident) => {
         impl SftpRequest for message::$input {
-            type Reply = Result<message::$output, message::Status>;
+            type Reply = message::$output;
 
-            fn to_requets_message(self) -> Message {
-                self.into()
+            fn to_request_message(self) -> Result<Message, ClientError> {
+                Ok(self.into())
             }
 
-            fn from_reply_message(msg: Message) -> Self::Reply {
+            fn from_reply_message(msg: Message) -> Result<Self::Reply, ClientError> {
                 match msg {
                     Message::$output(response) => Ok(response),
                     Message::Status(status) => Err(status),
                     _ => Err(message::StatusCode::BadMessage
                         .to_status(std::stringify!(Expected a $output or a status).into())),
-                }
+                }.map_err(Into::into)
             }
         }
     };
