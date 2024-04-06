@@ -16,8 +16,9 @@
 
 use std::{future::Future, pin::Pin};
 
-use crate::{ClientError, Close, Handle, Name, SftpClient};
+use crate::{ClientError, Handle, Name, SftpClient};
 
+mod close;
 mod stream;
 
 /// Directory accessible remotely with SFTP
@@ -64,42 +65,6 @@ impl Dir {
 }
 
 pub static DIR_CLOSED: Dir = Dir::new_closed();
-
-impl Dir {
-    /// Check whether the directory is closed
-    pub fn is_closed(&self) -> bool {
-        self.handle.is_none()
-    }
-
-    /// Close the remote dir
-    pub fn close(&mut self) -> impl Future<Output = Result<(), ClientError>> {
-        let future = if let Some(handle) = std::mem::take(&mut self.handle) {
-            Some(self.client.request(Close { handle }))
-        } else {
-            // If the dir was already closed, no need to close it
-            None
-        };
-        let mut client = std::mem::replace(&mut self.client, SftpClient::new_stopped());
-
-        async move {
-            let response = match future {
-                Some(future) => future.await,
-                None => Ok(()),
-            };
-
-            // Avoid keeping the client alive until the directory is dropped
-            client.stop().await;
-
-            response
-        }
-    }
-}
-
-impl Drop for Dir {
-    fn drop(&mut self) {
-        _ = futures::executor::block_on(self.close());
-    }
-}
 
 impl std::fmt::Debug for Dir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
