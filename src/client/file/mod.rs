@@ -17,7 +17,8 @@
 use std::{
     future::Future,
     pin::Pin,
-    task::{ready, Poll}, sync::Arc,
+    sync::Arc,
+    task::{ready, Poll},
 };
 
 use bytes::Bytes;
@@ -127,6 +128,17 @@ impl File {
         };
 
         async move { future?.await }
+    }
+}
+
+impl Clone for File {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            handle: self.handle.clone(),
+            offset: self.offset,
+            pending: PendingOperation::None,
+        }
     }
 }
 
