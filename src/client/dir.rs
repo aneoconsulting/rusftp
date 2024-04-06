@@ -18,7 +18,7 @@ use std::{future::Future, pin::Pin, task::ready};
 
 use futures::Stream;
 
-use crate::{Close, Handle, Name, NameEntry, ReadDir, SftpClient, Status, StatusCode};
+use crate::{ClientError, Close, Handle, Name, NameEntry, ReadDir, SftpClient, Status, StatusCode};
 
 /// Directory accessible remotely with SFTP
 pub struct Dir {
@@ -28,7 +28,8 @@ pub struct Dir {
     pending: Option<PendingOperation>,
 }
 
-type PendingOperation = Pin<Box<dyn Future<Output = Result<Name, Status>> + Send + Sync + 'static>>;
+type PendingOperation =
+    Pin<Box<dyn Future<Output = Result<Name, ClientError>> + Send + Sync + 'static>>;
 
 impl Dir {
     /// Create a directory from a raw [`Handle`].
@@ -71,7 +72,7 @@ impl Dir {
     }
 
     /// Close the remote dir
-    pub fn close(&mut self) -> impl Future<Output = Result<(), Status>> {
+    pub fn close(&mut self) -> impl Future<Output = Result<(), ClientError>> {
         let future = if let Some(handle) = std::mem::take(&mut self.handle) {
             Some(self.client.request(Close { handle }))
         } else {
@@ -112,7 +113,7 @@ impl std::fmt::Debug for Dir {
 }
 
 impl Stream for Dir {
-    type Item = Result<NameEntry, std::io::Error>;
+    type Item = Result<NameEntry, ClientError>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -137,7 +138,8 @@ impl Stream for Dir {
                     return std::task::Poll::Ready(Some(Err(std::io::Error::new(
                         std::io::ErrorKind::BrokenPipe,
                         "Dir was closed",
-                    ))));
+                    )
+                    .into())));
                 };
 
                 let readdir = self.client.request(ReadDir {
@@ -164,14 +166,15 @@ impl Stream for Dir {
                     Some(Err(std::io::Error::new(
                         std::io::ErrorKind::UnexpectedEof,
                         "Found no more directory entries while it was expecting some",
-                    )))
+                    )
+                    .into()))
                 }
             }
-            Err(Status {
+            Err(ClientError::Sftp(Status {
                 code: StatusCode::Eof,
                 ..
-            }) => None,
-            Err(err) => Some(Err(err.into())),
+            })) => None,
+            Err(err) => Some(Err(err)),
         };
 
         std::task::Poll::Ready(result)

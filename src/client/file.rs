@@ -23,7 +23,7 @@ use std::{
 use bytes::Bytes;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-use crate::{message, Attrs, Close, Handle, SftpClient, Status, StatusCode, Write};
+use crate::{message, Attrs, ClientError, Close, Handle, SftpClient, Status, StatusCode, Write};
 
 /// File accessible remotely with SFTP
 #[derive(Debug)]
@@ -86,7 +86,9 @@ impl File {
     }
 
     /// Close the remote file
-    pub fn close(&mut self) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+    pub fn close(
+        &mut self,
+    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
         let future = if let Some(handle) = std::mem::take(&mut self.handle) {
             Some(self.client.request(message::Close { handle }))
         } else {
@@ -109,21 +111,19 @@ impl File {
     }
 
     /// Read the attributes (metadata) of the file.
-    pub fn stat(&self) -> impl Future<Output = Result<Attrs, Status>> + Send + Sync + 'static {
+    pub fn stat(&self) -> impl Future<Output = Result<Attrs, ClientError>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FStat {
                 handle: handle.clone(),
             }))
         } else {
-            Err(StatusCode::Failure.to_status("File was already closed".into()))
+            Err(ClientError::Io(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "File was already closed",
+            )))
         };
 
-        async move {
-            match future {
-                Ok(future) => future.await,
-                Err(err) => Err(err),
-            }
-        }
+        async move { future?.await }
     }
 
     /// change the attributes (metadata) of the file.
@@ -140,22 +140,20 @@ impl File {
     pub fn set_stat(
         &self,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<(), Status>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<(), ClientError>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(message::FSetStat {
                 handle: handle.clone(),
                 attrs,
             }))
         } else {
-            Err(StatusCode::Failure.to_status("File was already closed".into()))
+            Err(ClientError::Io(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "File was already closed",
+            )))
         };
 
-        async move {
-            match future {
-                Ok(future) => future.await,
-                Err(err) => Err(err),
-            }
-        }
+        async move { future?.await }
     }
 }
 
@@ -188,8 +186,11 @@ impl AsyncRead for File {
                 self.pending = PendingOperation::Read(Box::pin(async move {
                     match read.await {
                         Ok(data) => Ok(data.0),
-                        Err(status) if status.code == StatusCode::Eof => Ok(Bytes::default()),
-                        Err(status) => Err(std::io::Error::from(status)),
+                        Err(ClientError::Sftp(Status {
+                            code: StatusCode::Eof,
+                            ..
+                        })) => Ok(Bytes::default()),
+                        Err(status) => Err(status.into()),
                     }
                 }));
 
