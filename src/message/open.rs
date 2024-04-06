@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Attrs, Path};
+use crate::message::{Attrs, Path};
 
 /// Request to open a file for reading or writing.
 ///
@@ -76,11 +76,11 @@ bitflags::bitflags! {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Attrs, Path,
     };
+    use crate::wire::Error;
 
     use super::{Open, PFlags};
     use bytes::Bytes;
@@ -105,10 +105,7 @@ mod test {
     #[test]
     fn decode_failure() {
         for i in 0..OPEN_VALID.len() {
-            assert_eq!(
-                fail_decode::<Open>(&OPEN_VALID[..i]),
-                WireFormatError::NotEnoughData
-            );
+            assert_eq!(fail_decode::<Open>(&OPEN_VALID[..i]), Error::NotEnoughData);
         }
     }
 }

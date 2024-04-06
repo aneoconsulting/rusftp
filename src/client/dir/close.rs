@@ -20,7 +20,8 @@ use std::{
     task::{ready, Poll},
 };
 
-use crate::{client::SftpClientStopping, ClientError, Handle};
+use crate::client::{Error, SftpClientStopping};
+use crate::message::Handle;
 
 use super::Dir;
 
@@ -45,9 +46,7 @@ impl Dir {
     /// The closing request is done before returning the future, including the pending operation.
     /// If the future is dropped before completion, it is safe to call it again
     /// to wait that the directory has actually been closed.
-    pub fn close(
-        &mut self,
-    ) -> impl Future<Output = Result<(), ClientError>> + Drop + Send + Sync + '_ {
+    pub fn close(&mut self) -> impl Future<Output = Result<(), Error>> + Drop + Send + Sync + '_ {
         DirClosing::new(self)
     }
 }
@@ -68,7 +67,7 @@ enum DirClosingState<'a> {
     Closing {
         dir: &'a mut Dir,
         handle: Handle,
-        pending: Pin<Box<dyn Future<Output = Result<(), ClientError>> + Send + Sync + 'static>>,
+        pending: Pin<Box<dyn Future<Output = Result<(), Error>> + Send + Sync + 'static>>,
     },
     Stopping(SftpClientStopping<'a>),
     Closed,
@@ -109,7 +108,7 @@ impl Drop for DirClosing<'_> {
 }
 
 impl Future for DirClosing<'_> {
-    type Output = Result<(), ClientError>;
+    type Output = Result<(), Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         loop {

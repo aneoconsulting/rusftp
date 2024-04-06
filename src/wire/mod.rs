@@ -20,4 +20,4 @@ mod error;
 
 pub use decoder::SftpDecoder;
 pub use encoder::SftpEncoder;
-pub use error::WireFormatError;
+pub use error::Error;

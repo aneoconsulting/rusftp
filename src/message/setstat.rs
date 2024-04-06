@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Attrs, Path};
+use crate::message::{Attrs, Path};
 
 /// Request to change the attributes (metadata) of a file or directory.
 ///
@@ -39,11 +39,11 @@ pub struct SetStat {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Attrs, Path,
     };
+    use crate::wire::Error;
 
     use super::SetStat;
     use bytes::Bytes;
@@ -69,7 +69,7 @@ mod test {
         for i in 0..SETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<SetStat>(&SETSTAT_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

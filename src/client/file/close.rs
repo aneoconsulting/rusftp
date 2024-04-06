@@ -21,7 +21,8 @@ use std::{
     task::{ready, Poll},
 };
 
-use crate::{client::SftpClientStopping, ClientError, Handle};
+use crate::client::{Error, SftpClientStopping};
+use crate::message::Handle;
 
 use super::{File, PendingOperation};
 
@@ -47,9 +48,7 @@ impl File {
     /// The closing request is done before returning the future, including the pending operation.
     /// If the future is dropped before completion, it is safe to call it again
     /// to wait that the file has actually been closed.
-    pub fn close(
-        &mut self,
-    ) -> impl Future<Output = Result<(), ClientError>> + Drop + Send + Sync + '_ {
+    pub fn close(&mut self) -> impl Future<Output = Result<(), Error>> + Drop + Send + Sync + '_ {
         FileClosing::new(self)
     }
 }
@@ -70,7 +69,7 @@ enum FileClosingState<'a> {
     Closing {
         file: &'a mut File,
         handle: Handle,
-        pending: Pin<Box<dyn Future<Output = Result<(), ClientError>> + Send + Sync + 'static>>,
+        pending: Pin<Box<dyn Future<Output = Result<(), Error>> + Send + Sync + 'static>>,
     },
     Stopping(SftpClientStopping<'a>),
     Closed,
@@ -112,7 +111,7 @@ impl Drop for FileClosing<'_> {
 }
 
 impl Future for FileClosing<'_> {
-    type Output = Result<(), ClientError>;
+    type Output = Result<(), Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         loop {

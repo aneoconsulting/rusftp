@@ -18,7 +18,7 @@ use thiserror::Error;
 
 /// Error while encoding or decoding a message
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum WireFormatError {
+pub enum Error {
     /// The message was too small for the data it appears to be
     #[error("Not enough data")]
     NotEnoughData,
@@ -36,7 +36,7 @@ pub enum WireFormatError {
     Custom(String),
 }
 
-impl serde::de::Error for WireFormatError {
+impl serde::de::Error for Error {
     fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,
@@ -45,7 +45,7 @@ impl serde::de::Error for WireFormatError {
     }
 }
 
-impl serde::ser::Error for WireFormatError {
+impl serde::ser::Error for Error {
     fn custom<T>(msg: T) -> Self
     where
         T: std::fmt::Display,

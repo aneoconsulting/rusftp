@@ -20,7 +20,7 @@ use serde::{
     Deserializer,
 };
 
-use super::WireFormatError;
+use crate::wire::Error;
 
 /// Serde decoder for the SFTP wire format.
 pub struct SftpDecoder<'de> {
@@ -30,9 +30,9 @@ pub struct SftpDecoder<'de> {
 
 macro_rules! decode {
     ($decode:ident, $get:ident, $ty:ty) => {
-        fn $decode(&mut self) -> Result<$ty, WireFormatError> {
+        fn $decode(&mut self) -> Result<$ty, Error> {
             if self.buf.remaining() < std::mem::size_of::<$ty>() {
-                return Err(WireFormatError::NotEnoughData);
+                return Err(Error::NotEnoughData);
             }
             Ok(self.buf.$get())
         }
@@ -46,7 +46,7 @@ macro_rules! deserialize {
     };
     ($deserialize:ident) => {
         fn $deserialize<V: de::Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
-            Err(WireFormatError::Unsupported)
+            Err(Error::Unsupported)
         }
     };
 }
@@ -69,28 +69,28 @@ impl<'de> SftpDecoder<'de> {
     decode!(decode_u128, get_u128, u128);
     decode!(decode_f32, get_f32, f32);
     decode!(decode_f64, get_f64, f64);
-    fn decode_bytes(&mut self) -> Result<&'de [u8], WireFormatError> {
+    fn decode_bytes(&mut self) -> Result<&'de [u8], Error> {
         let len = if self.decode_length() {
             self.decode_u32()? as usize
         } else {
             self.buf.remaining()
         };
         let Some(bytes) = self.buf.get(0..len) else {
-            return Err(WireFormatError::NotEnoughData);
+            return Err(Error::NotEnoughData);
         };
         self.buf.advance(len);
         Ok(bytes)
     }
-    fn decode_str(&mut self) -> Result<&'de str, WireFormatError> {
+    fn decode_str(&mut self) -> Result<&'de str, Error> {
         match std::str::from_utf8(self.decode_bytes()?) {
             Ok(s) => Ok(s),
-            Err(_) => Err(WireFormatError::InvalidChar),
+            Err(_) => Err(Error::InvalidChar),
         }
     }
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut SftpDecoder<'de> {
-    type Error = WireFormatError;
+    type Error = Error;
 
     deserialize!(deserialize_any);
     deserialize!(deserialize_i8, visit_i8, decode_u8, i8);
@@ -120,7 +120,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut SftpDecoder<'de> {
         if let Some(c) = char::from_u32(self.decode_u32()?) {
             visitor.visit_char(c)
         } else {
-            Err(WireFormatError::InvalidChar)
+            Err(Error::InvalidChar)
         }
     }
 
@@ -219,7 +219,7 @@ pub struct SftpDecoderSeq<'a, 'de> {
 }
 
 impl<'a, 'de> SftpDecoderSeq<'a, 'de> {
-    fn new(decoder: &'a mut SftpDecoder<'de>) -> Result<Self, WireFormatError> {
+    fn new(decoder: &'a mut SftpDecoder<'de>) -> Result<Self, Error> {
         let nel = if decoder.decode_length() {
             Some(decoder.decode_u32()? as usize)
         } else {
@@ -234,7 +234,7 @@ impl<'a, 'de> SftpDecoderSeq<'a, 'de> {
 }
 
 impl<'a, 'de> de::SeqAccess<'de> for SftpDecoderSeq<'a, 'de> {
-    type Error = WireFormatError;
+    type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
@@ -271,7 +271,7 @@ impl<'a, 'de> de::SeqAccess<'de> for SftpDecoderSeq<'a, 'de> {
     }
 }
 impl<'a, 'de> de::MapAccess<'de> for SftpDecoderSeq<'a, 'de> {
-    type Error = WireFormatError;
+    type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
     where
@@ -298,7 +298,7 @@ pub struct SftpDecoderEnum<'a, 'de> {
 }
 
 impl<'a, 'de> de::EnumAccess<'de> for SftpDecoderEnum<'a, 'de> {
-    type Error = WireFormatError;
+    type Error = Error;
     type Variant = &'a mut SftpDecoder<'de>;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
@@ -311,7 +311,7 @@ impl<'a, 'de> de::EnumAccess<'de> for SftpDecoderEnum<'a, 'de> {
     }
 }
 impl<'a, 'de> de::VariantAccess<'de> for &'a mut SftpDecoder<'de> {
-    type Error = WireFormatError;
+    type Error = Error;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
         Ok(())

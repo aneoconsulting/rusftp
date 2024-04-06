@@ -23,7 +23,7 @@ use std::{
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use super::{Attrs, Path};
+use crate::message::{Attrs, Path};
 
 /// Arbitrary byte string containing the requested data.
 ///
@@ -147,11 +147,11 @@ impl BorrowMut<[NameEntry]> for Name {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Attrs, Path,
     };
+    use crate::wire::Error;
 
     use super::NameEntry;
     use bytes::Bytes;
@@ -179,7 +179,7 @@ mod test {
         for i in 0..NAME_VALID.len() {
             assert_eq!(
                 fail_decode::<NameEntry>(&NAME_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

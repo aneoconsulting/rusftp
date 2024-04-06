@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Handle;
+use crate::message::Handle;
 
 /// Request to read a portion of an opened file.
 ///
@@ -36,11 +36,11 @@ pub struct Read {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Handle,
     };
+    use crate::wire::Error;
 
     use super::Read;
     use bytes::Bytes;
@@ -65,7 +65,7 @@ mod test {
         for i in 0..FSETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<Read>(&FSETSTAT_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }

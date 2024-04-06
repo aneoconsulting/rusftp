@@ -16,18 +16,18 @@
 
 use thiserror::Error;
 
-use crate::StatusCode;
+use crate::message::{Status, StatusCode};
 
 /// SFTP client error
 #[derive(Debug, Error)]
-pub enum ClientError {
+pub enum Error {
     /// Error sent from SFTP server
     #[error(transparent)]
-    Sftp(#[from] crate::Status),
+    Sftp(#[from] Status),
 
     /// Encoding or Decoding error
     #[error(transparent)]
-    WireFormat(#[from] crate::wire::WireFormatError),
+    WireFormat(#[from] crate::wire::Error),
 
     /// SSH error
     #[error(transparent)]
@@ -37,19 +37,20 @@ pub enum ClientError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
-impl From<russh::Error> for ClientError {
+
+impl From<russh::Error> for Error {
     fn from(value: russh::Error) -> Self {
         match value {
-            russh::Error::IO(io) => ClientError::Io(io),
-            other => ClientError::Ssh(other),
+            russh::Error::IO(io) => Error::Io(io),
+            other => Error::Ssh(other),
         }
     }
 }
 
-impl From<ClientError> for std::io::Error {
-    fn from(value: ClientError) -> Self {
+impl From<Error> for std::io::Error {
+    fn from(value: Error) -> Self {
         match value {
-            ClientError::Sftp(sftp) => {
+            Error::Sftp(sftp) => {
                 let kind = match sftp.code {
                     StatusCode::Ok => std::io::ErrorKind::Other,
                     StatusCode::Eof => std::io::ErrorKind::UnexpectedEof,
@@ -64,10 +65,10 @@ impl From<ClientError> for std::io::Error {
 
                 Self::new(kind, sftp)
             }
-            ClientError::WireFormat(wire) => std::io::Error::new(std::io::ErrorKind::Other, wire),
-            ClientError::Ssh(russh::Error::IO(io)) => io,
-            ClientError::Ssh(ssh) => std::io::Error::new(std::io::ErrorKind::Other, ssh),
-            ClientError::Io(io) => io,
+            Error::WireFormat(wire) => std::io::Error::new(std::io::ErrorKind::Other, wire),
+            Error::Ssh(russh::Error::IO(io)) => io,
+            Error::Ssh(ssh) => std::io::Error::new(std::io::ErrorKind::Other, ssh),
+            Error::Io(io) => io,
         }
     }
 }

@@ -16,12 +16,13 @@
 
 use std::task::ready;
 
-use crate::{ClientError, NameEntry, ReadDir, Status, StatusCode};
+use crate::client::Error;
+use crate::message::{NameEntry, ReadDir, Status, StatusCode};
 
 use super::Dir;
 
 impl futures::Stream for Dir {
-    type Item = Result<NameEntry, ClientError>;
+    type Item = Result<NameEntry, Error>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -83,7 +84,7 @@ impl futures::Stream for Dir {
                     .into()))
                 }
             }
-            Err(ClientError::Sftp(Status {
+            Err(Error::Sftp(Status {
                 code: StatusCode::Eof,
                 ..
             })) => None,

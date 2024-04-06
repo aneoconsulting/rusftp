@@ -20,9 +20,10 @@ use bytes::Buf;
 use russh::{client::Msg, Channel, ChannelMsg};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::{ClientError, Message};
+use crate::client::Error;
+use crate::message::Message;
 
-pub(super) type Response = Result<Message, ClientError>;
+pub(super) type Response = Result<Message, Error>;
 pub(super) struct Request(pub(super) Message, pub(super) oneshot::Sender<Response>);
 
 pub(super) struct Receiver {

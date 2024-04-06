@@ -19,7 +19,8 @@ use std::{task::ready, task::Poll};
 use bytes::Bytes;
 use futures::Future;
 
-use crate::{ClientError, Handle, Read, Status, StatusCode};
+use crate::client::Error;
+use crate::message::{Handle, Read, Status, StatusCode};
 
 use super::{File, OperationResult, PendingOperation};
 
@@ -34,7 +35,7 @@ impl File {
         &self,
         offset: u64,
         length: u32,
-    ) -> impl Future<Output = Result<Bytes, ClientError>> + Send + Sync + 'static {
+    ) -> impl Future<Output = Result<Bytes, Error>> + Send + Sync + 'static {
         let future = if let Some(handle) = &self.handle {
             Ok(self.client.request(Read {
                 handle: Handle::clone(handle),
@@ -42,7 +43,7 @@ impl File {
                 length,
             }))
         } else {
-            Err(ClientError::Io(std::io::Error::new(
+            Err(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))
@@ -82,7 +83,7 @@ impl tokio::io::AsyncRead for File {
                 self.pending = PendingOperation::Read(Box::pin(async move {
                     match read.await {
                         Ok(data) => Ok(data.0),
-                        Err(ClientError::Sftp(Status {
+                        Err(Error::Sftp(Status {
                             code: StatusCode::Eof,
                             ..
                         })) => Ok(Bytes::default()),

@@ -17,7 +17,7 @@
 use bytes::BufMut;
 use serde::ser;
 
-use super::WireFormatError;
+use crate::wire::Error;
 
 /// Serde encoder for the SFTP wire format.
 #[derive(Default)]
@@ -57,14 +57,14 @@ macro_rules! serialize {
                 self.buf.$put(v);
                 Ok(())
             } else {
-                Err(WireFormatError::NotEnoughData)
+                Err(Error::NotEnoughData)
             }
         }
     };
     (trait $trait:ident: $serialize:ident $($key:ident)?) => {
         impl<'a> ser::$trait for &'a mut SftpEncoder {
             type Ok = ();
-            type Error = WireFormatError;
+            type Error = Error;
 
             fn $serialize<T>(&mut self, $($key: &'static str,)? value: &T) -> Result<(), Self::Error>
             where
@@ -83,7 +83,7 @@ macro_rules! serialize {
 
 impl<'a> ser::Serializer for &'a mut SftpEncoder {
     type Ok = ();
-    type Error = WireFormatError;
+    type Error = Error;
 
     type SerializeSeq = Self;
     type SerializeTuple = Self;
@@ -120,7 +120,7 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
         let Ok(len) = u32::try_from(v.len()) else {
-            return Err(WireFormatError::Unsupported);
+            return Err(Error::Unsupported);
         };
 
         if self.buf.remaining_mut() >= len as usize + std::mem::size_of::<u32>() {
@@ -130,7 +130,7 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
             self.buf.put(v);
             Ok(())
         } else {
-            Err(WireFormatError::NotEnoughData)
+            Err(Error::NotEnoughData)
         }
     }
 
@@ -192,7 +192,7 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         if let Some(len) = len {
             let Ok(len) = u32::try_from(len) else {
-                return Err(WireFormatError::Unsupported);
+                return Err(Error::Unsupported);
             };
             if self.encode_length() {
                 self.serialize_u32(len)?;
@@ -231,7 +231,7 @@ impl<'a> ser::Serializer for &'a mut SftpEncoder {
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
         if let Some(len) = len {
             let Ok(len) = u32::try_from(len) else {
-                return Err(WireFormatError::Unsupported);
+                return Err(Error::Unsupported);
             };
             if self.encode_length() {
                 self.serialize_u32(len)?;
@@ -276,7 +276,7 @@ serialize!(trait SerializeStructVariant: serialize_field key);
 
 impl<'a> ser::SerializeMap for &'a mut SftpEncoder {
     type Ok = ();
-    type Error = WireFormatError;
+    type Error = Error;
 
     fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
     where

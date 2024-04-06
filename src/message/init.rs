@@ -40,7 +40,7 @@ pub struct Init {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+        wire::Error,
     };
 
     use super::Init;
@@ -76,10 +76,7 @@ mod test {
     #[test]
     fn decode_failure() {
         for i in 5..INIT_VALID.len() {
-            assert_eq!(
-                fail_decode::<Init>(&INIT_VALID[..i]),
-                WireFormatError::NotEnoughData
-            );
+            assert_eq!(fail_decode::<Init>(&INIT_VALID[..i]), Error::NotEnoughData);
         }
     }
 }

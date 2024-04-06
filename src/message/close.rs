@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Handle;
+use crate::message::Handle;
 
 /// Request to close an opened file or directory.
 ///
@@ -31,8 +31,8 @@ pub struct Close {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID},
         Handle,
     };
 

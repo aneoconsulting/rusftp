@@ -14,11 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod client;
-mod message;
-
-pub mod wire;
-
-pub use client::*;
-pub use message::*;
 pub use russh;
+
+pub mod client;
+pub mod message;
+pub mod wire;

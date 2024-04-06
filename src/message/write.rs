@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Data, Handle};
+use crate::message::{Data, Handle};
 
 /// Request to write to a portion of an opened file.
 ///
@@ -35,11 +35,11 @@ pub struct Write {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        message::test_utils::{encode_decode, fail_decode},
-        wire::WireFormatError,
+    use crate::message::{
+        test_utils::{encode_decode, fail_decode},
         Data, Handle,
     };
+    use crate::wire::Error;
 
     use super::Write;
     use bytes::Bytes;
@@ -63,7 +63,7 @@ mod test {
         for i in 0..WRITE_VALID.len() {
             assert_eq!(
                 fail_decode::<Write>(&WRITE_VALID[..i]),
-                WireFormatError::NotEnoughData
+                Error::NotEnoughData
             );
         }
     }
