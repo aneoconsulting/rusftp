@@ -18,9 +18,15 @@ use serde::{Deserialize, Serialize};
 
 use super::Handle;
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to close an opened file or directory.
+///
+/// It is answered with [`Status`](crate::Status).
+///
+/// internal: SSH_FXP_CLOSE
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Close {
-    handle: Handle,
+    /// Handle of the file or the directory
+    pub handle: Handle,
 }
 
 #[cfg(test)]

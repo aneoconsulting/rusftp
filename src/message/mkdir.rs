@@ -18,9 +18,18 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to create a new directory.
+///
+/// An error will be returned if a file or directory with the specified path already exists.
+///
+/// It is answered with [`Status`](crate::Status).
+///
+/// internal: `SSH_FXP_MKDIR`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MkDir {
+    /// Path where the new directory will be located
     pub path: Path,
+    /// Default attributes to apply to the newly created directory
     pub attrs: Attrs,
 }
 
@@ -28,7 +37,7 @@ pub struct MkDir {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
     use super::MkDir;
@@ -55,7 +64,7 @@ mod test {
         for i in 0..MKDIR_VALID.len() {
             assert_eq!(
                 fail_decode::<MkDir>(&MKDIR_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

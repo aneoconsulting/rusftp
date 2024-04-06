@@ -18,8 +18,17 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to canonicalize a path.
+///
+/// The response will contain a single entry whose attributes have dummy values.
+///
+/// It is answered with [`Name`](crate::Name) in case of success
+/// and [`Status`](crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_REALPATH`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RealPath {
+    /// Path to canonicalize
     pub path: Path,
 }
 

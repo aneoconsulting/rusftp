@@ -16,37 +16,109 @@
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::Message;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+/// Status code of an operation.
+///
+/// `OK` indicates that the operations has been successful.
+/// All other values indicate errors.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Error)]
 #[repr(u32)]
 #[non_exhaustive]
 pub enum StatusCode {
+    /// Indicates successful completion of the operation.
+    ///
+    /// internal: `SSH_FX_OK`
+    #[error("Ok")]
+    #[default]
     Ok = 0,
+
+    /// Indicates end-of-file condition.
+    ///
+    /// For [`Read`](crate::Read) it means that no more data is available in the file,
+    /// and for [`ReadDir`](crate::ReadDir) it indicates that no more files are contained in the directory.
+    ///
+    /// internal: `SSH_FX_EOF`
+    #[error("Eof")]
     Eof = 1,
+
+    /// Returned when a reference is made to a file which should exist but doesn't.
+    ///
+    /// internal: `SSH_FX_NO_SUCH_FILE`
+    #[error("NoSuchFile")]
     NoSuchFile = 2,
+
+    /// Returned when the authenticated user does not have sufficient permissions to perform the operation.
+    ///
+    /// internal: `SSH_FX_PERMISSION_DENIED`
+    #[error("PermissionDenied")]
     PermissionDenied = 3,
+
+    /// A generic catch-all error message
+    ///
+    /// It should be returned if an error occurs for which there is no more specific error code defined.
+    ///
+    /// internal: `SSH_FX_FAILURE`
+    #[error("Failure")]
     Failure = 4,
+
+    /// May be returned if a badly formatted packet or protocol incompatibility is detected.
+    ///
+    /// internal: `SSH_FX_BAD_MESSAGE`
+    #[error("BadMessage")]
     BadMessage = 5,
+
+    /// A pseudo-error which indicates that the client has no connection to the server.
+    ///
+    /// It can only be generated locally by the client, and MUST NOT be returned by servers.
+    ///
+    /// internal: `SSH_FX_NO_CONNECTION`
+    #[error("NoConnection")]
     NoConnection = 6,
+
+    /// A pseudo-error which indicates that the connection to the server has been lost.
+    ///
+    /// It can only be generated locally by the client, and MUST NOT be returned by servers.
+    ///
+    /// internal: `SSH_FX_CONNECTION_LOST`
+    #[error("ConnectionLost")]
     ConnectionLost = 7,
+
+    /// Indicates that an attempt was made to perform an operation which is not supported for the server
+    ///
+    /// It may be generated locally by the client if e.g.  the version number exchange indicates
+    /// that a required feature is not supported by the server,
+    /// or it may be returned by the server if the server does not implement an operation.
+    ///
+    /// internal: `SSH_FX_OP_UNSUPPORTED`
+    #[error("OpUnsupported")]
     OpUnsupported = 8,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+/// Status of an operation.
+///
+/// A status code `OK` indicates that the operations has been successful.
+/// All other status codes indicate errors.
+///
+/// internal: `SSH_FXP_STATUS`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Status {
-    pub code: u32,
+    /// Code of the status, see [`StatusCode`]
+    pub code: StatusCode,
+    /// Message of the error
     pub error: Bytes,
+    /// Language tag for the error message
     pub language: Bytes,
 }
 
 impl Status {
     pub fn is_ok(&self) -> bool {
-        self.code == StatusCode::Ok as u32
+        self.code == StatusCode::Ok
     }
     pub fn is_err(&self) -> bool {
-        self.code != StatusCode::Ok as u32
+        self.code != StatusCode::Ok
     }
 
     pub fn to_result<T>(self, value: T) -> Result<T, Self> {
@@ -67,7 +139,7 @@ impl StatusCode {
         };
 
         Status {
-            code: self as u32,
+            code: self,
             error: msg,
             language: "en".into(),
         }
@@ -75,23 +147,6 @@ impl StatusCode {
 
     pub fn to_message(self, msg: Bytes) -> Message {
         Message::Status(self.to_status(msg))
-    }
-}
-
-impl std::fmt::Display for StatusCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            StatusCode::Ok => "Ok",
-            StatusCode::Eof => "EOF",
-            StatusCode::NoSuchFile => "No such file",
-            StatusCode::PermissionDenied => "Permission Denied",
-            StatusCode::Failure => "Failure",
-            StatusCode::BadMessage => "Bad message",
-            StatusCode::NoConnection => "No connection",
-            StatusCode::ConnectionLost => "Connection lost",
-            StatusCode::OpUnsupported => "Operation not supported",
-        };
-        f.write_str(s)
     }
 }
 
@@ -159,7 +214,7 @@ impl From<std::io::ErrorKind> for StatusCode {
 impl From<std::io::Error> for Status {
     fn from(value: std::io::Error) -> Self {
         Self {
-            code: StatusCode::from(value.kind()) as u32,
+            code: StatusCode::from(value.kind()),
             error: value.to_string().into(),
             language: "en".into(),
         }
@@ -177,17 +232,17 @@ impl From<russh::Error> for Status {
             _ => StatusCode::Failure,
         };
         Self {
-            code: status_code as u32,
+            code: status_code,
             error: value.to_string().into(),
             language: "en".into(),
         }
     }
 }
 
-impl From<crate::Error> for Status {
-    fn from(error: crate::Error) -> Self {
+impl From<crate::WireFormatError> for Status {
+    fn from(error: crate::WireFormatError) -> Self {
         Self {
-            code: StatusCode::BadMessage as u32,
+            code: StatusCode::BadMessage,
             error: error.to_string().into(),
             language: "en".into(),
         }
@@ -196,17 +251,16 @@ impl From<crate::Error> for Status {
 
 impl From<Status> for std::io::Error {
     fn from(value: Status) -> Self {
-        let kind = match StatusCode::try_from(value.code) {
-            Ok(StatusCode::Ok) => std::io::ErrorKind::Other,
-            Ok(StatusCode::Eof) => std::io::ErrorKind::UnexpectedEof,
-            Ok(StatusCode::NoSuchFile) => std::io::ErrorKind::NotFound,
-            Ok(StatusCode::PermissionDenied) => std::io::ErrorKind::PermissionDenied,
-            Ok(StatusCode::Failure) => std::io::ErrorKind::Other,
-            Ok(StatusCode::BadMessage) => std::io::ErrorKind::InvalidData,
-            Ok(StatusCode::NoConnection) => std::io::ErrorKind::Other,
-            Ok(StatusCode::ConnectionLost) => std::io::ErrorKind::Other,
-            Ok(StatusCode::OpUnsupported) => std::io::ErrorKind::Unsupported,
-            Err(_) => std::io::ErrorKind::Other,
+        let kind = match value.code {
+            StatusCode::Ok => std::io::ErrorKind::Other,
+            StatusCode::Eof => std::io::ErrorKind::UnexpectedEof,
+            StatusCode::NoSuchFile => std::io::ErrorKind::NotFound,
+            StatusCode::PermissionDenied => std::io::ErrorKind::PermissionDenied,
+            StatusCode::Failure => std::io::ErrorKind::Other,
+            StatusCode::BadMessage => std::io::ErrorKind::InvalidData,
+            StatusCode::NoConnection => std::io::ErrorKind::Other,
+            StatusCode::ConnectionLost => std::io::ErrorKind::Other,
+            StatusCode::OpUnsupported => std::io::ErrorKind::Unsupported,
         };
 
         Self::new(kind, value)
@@ -221,7 +275,7 @@ mod test {
 
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error,
+        WireFormatError,
     };
 
     use super::{Status, StatusCode};
@@ -246,7 +300,7 @@ mod test {
 
         encode_decode(
             Status {
-                code: 1,
+                code: StatusCode::Eof,
                 error: Bytes::from_static(b"eof"),
                 language: Bytes::from_static(b"en"),
             },
@@ -259,7 +313,7 @@ mod test {
         for i in 0..STATUS_VALID.len() {
             assert_eq!(
                 fail_decode::<Status>(&STATUS_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

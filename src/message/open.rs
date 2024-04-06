@@ -18,40 +18,80 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to open a file for reading or writing.
+///
+/// It is answered with [`Handle`](crate::Handle) in case of success
+/// and [`Status`](crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_OPEN`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Open {
+    /// Path of the file to open
     pub filename: Path,
-    pub pflags: u32,
+    /// Flags for the file opening
+    pub pflags: PFlags,
+    /// Default file attributes to use upon file creation
     pub attrs: Attrs,
 }
 
-pub mod pflags {
-    pub const READ: u32 = 0x00000001;
-    pub const WRITE: u32 = 0x00000002;
-    pub const APPEND: u32 = 0x00000004;
-    pub const CREATE: u32 = 0x00000008;
-    pub const TRUNCATE: u32 = 0x00000010;
-    pub const EXCLUDE: u32 = 0x00000020;
+bitflags::bitflags! {
+    #[repr(transparent)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct PFlags: u32 {
+        /// Open the file for reading.
+        ///
+        /// internal: `SSH_FXF_READ`
+        const READ = 0x00000001;
+
+        /// Open the file for writing.
+        /// If both this and `READ` are specified, the file is opened for both reading and writing.
+        ///
+        /// internal: `SSH_FXF_WRITE`
+        const WRITE = 0x00000002;
+
+        /// Force all writes to append data at the end of the file.
+        ///
+        /// internal: `SSH_FXF_APPEND`
+        const APPEND = 0x00000004;
+
+        /// If this flag is specified, then a new file will be created if one does not already exist
+        /// (if O_TRUNC is specified, the new file will be truncated to zero length if it previously exists).
+        ///
+        /// internal: `SSH_FXF_CREAT`
+        const CREATE = 0x00000008;
+
+        /// Forces an existing file with the same name to be truncated to zero length when creating a file by specifying `CREATE`.
+        /// `CREATE` MUST also be specified if this flag is used.
+        ///
+        /// internal: `SSH_FXF_TRUNC`
+        const TRUNCATE = 0x00000010;
+
+        /// Causes the request to fail if the named file already exists.
+        /// `CREATE` MUST also be specified if this flag is used.
+        ///
+        /// internal: `SSH_FXF_EXCL`
+        const EXCLUDE = 0x00000020;
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
-    use super::Open;
+    use super::{Open, PFlags};
     use bytes::Bytes;
 
-    const OPEN_VALID: &[u8] = b"\0\0\0\x08filename\x56\xfe\x78\x21\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
+    const OPEN_VALID: &[u8] = b"\0\0\0\x08filename\0\0\0\x09\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
 
     #[test]
     fn encode_success() {
         encode_decode(
             Open {
                 filename: Path(Bytes::from_static(b"filename")),
-                pflags: 0x56fe7821,
+                pflags: PFlags::READ | PFlags::CREATE,
                 attrs: Attrs {
                     size: Some(0xa7735),
                     ..Default::default()
@@ -64,7 +104,10 @@ mod test {
     #[test]
     fn decode_failure() {
         for i in 0..OPEN_VALID.len() {
-            assert_eq!(fail_decode::<Open>(&OPEN_VALID[..i]), Error::NotEnoughData);
+            assert_eq!(
+                fail_decode::<Open>(&OPEN_VALID[..i]),
+                WireFormatError::NotEnoughData
+            );
         }
     }
 }

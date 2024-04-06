@@ -18,9 +18,16 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to create a symbolic link.
+///
+/// It is answered with [`Status`](crate::Status).
+///
+/// internal: `SSH_FXP_RENAME`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Symlink {
+    /// Path name of the symbolic link to be created
     pub link_path: Path,
+    /// Target of the symbolic link
     pub target_path: Path,
 }
 
@@ -28,7 +35,7 @@ pub struct Symlink {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error, Path,
+        Path, WireFormatError,
     };
 
     use super::Symlink;
@@ -52,7 +59,7 @@ mod test {
         for i in 0..SYMLINK_VALID.len() {
             assert_eq!(
                 fail_decode::<Symlink>(&SYMLINK_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

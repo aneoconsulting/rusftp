@@ -17,9 +17,26 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Generic request for an extension.
+///
+/// It may be answered with [`ExtendedReply`](crate::ExtendedReply) in case of success
+/// and [`Status`](crate::Status) in case of failure.
+///
+/// If the server does not recognize the request,
+/// then the server MUST respond with [`Status`](crate::Status) with status set to `OpUnsupported`.
+///
+/// internal: `SSH_FXP_EXTENDED`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Extended {
+    /// Extended-request name
+    ///
+    /// It is a string of the format `name@domain`,
+    /// where domain is an internet domain name of the vendor defining the request.
+    /// The rest of the request is completely vendor-specific,
+    /// and servers should only attempt to interpret it if they recognize the `extended-request' name.
     pub request: Bytes,
+
+    /// Specific data needed by the extension to intrepret the request
     #[serde(rename = "data_implicit_length")]
     pub data: Bytes,
 }

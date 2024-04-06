@@ -19,9 +19,17 @@ use std::collections::BTreeMap;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Version reply from the server.
+///
+/// internal: `SSH_FXP_VERSION`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Version {
+    /// Version of the protocol used for the rest of the communication
     pub version: u32,
+
+    /// List of extensions supported by the server
+    ///
+    /// Implementations MUST silently ignore any extensions whose name they do not recognize.
     #[serde(rename = "extensions_implicit_length")]
     pub extensions: BTreeMap<Bytes, Bytes>,
 }
@@ -30,7 +38,7 @@ pub struct Version {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error,
+        WireFormatError,
     };
 
     use super::Version;
@@ -68,7 +76,7 @@ mod test {
         for i in 5..VERSION_VALID.len() {
             assert_eq!(
                 fail_decode::<Version>(&VERSION_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

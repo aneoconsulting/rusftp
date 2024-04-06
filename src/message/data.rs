@@ -19,7 +19,13 @@ use std::ops::Deref;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Arbitrary byte string containing the requested data.
+///
+/// The data string may be at most the number of bytes requested in a [`Read`](crate::Read) request,
+/// but may also be shorter if end of file is reached or if the read is from something other than a regular file.
+///
+/// internal: `SSH_FXP_DATA`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Data(pub Bytes);
 
 impl<T: Into<Bytes>> From<T> for Data {

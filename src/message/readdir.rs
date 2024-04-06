@@ -18,8 +18,21 @@ use serde::{Deserialize, Serialize};
 
 use super::Handle;
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to read a directory listing.
+///
+/// Each [`ReadDir`] request returns one or more file names with full file attributes for each file.
+/// The client should call [`ReadDir`] repeatedly until it has found the file it is looking for
+/// or until the server responds with a [`Status`](crate::Status) message indicating an error
+/// (normally `EOF` if there are no more files in the directory).
+/// The client should then close the handle using the [`Close`](crate::Close) request.
+///
+/// It is answered with [`Name`](crate::Name) in case of success
+/// and [`Status`](crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_OPENDIR`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReadDir {
+    /// Handle of the open directory
     pub handle: Handle,
 }
 

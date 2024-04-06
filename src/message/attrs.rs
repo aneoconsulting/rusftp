@@ -14,13 +14,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bitflags::bitflags;
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+/// Attributes of a file or a directory.
+///
+/// The same encoding is used both when returning file attributes
+/// from the server and when sending file attributes to the server.
+/// When sending it to the server, the flags field specifies which attributes are included,
+/// and the server will use default values for the remaining attributes
+/// (or will not modify the values of remaining attributes).
+/// When receiving attributes from the server,
+/// the flags specify which attributes are included in the returned data.
+/// The server normally returns all attributes it knows about.
+///
+/// internal: `SSH_FXP_ATTRS`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Attrs {
+    /// Size of the file (optional)
     pub size: Option<u64>,
+    /// Owner of the file (optional)
     pub owner: Option<Owner>,
-    pub perms: Option<u32>,
+    /// Permissions of the file (optional)
+    pub perms: Option<Permisions>,
+    /// Access and Modification time of the file (optional)
     pub time: Option<Time>,
 }
 
@@ -35,56 +52,97 @@ impl Attrs {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u32)]
-#[non_exhaustive]
-pub enum Permisions {
-    // Permissions for others
-    OX = 0x0001,
-    OW = 0x0002,
-    OR = 0x0004,
-    // Permissions for group
-    GX = 0x0008,
-    GW = 0x0010,
-    GR = 0x0020,
-    // Permissions for user
-    UX = 0x0040,
-    UW = 0x0080,
-    UR = 0x0100,
-    // Special permissions
-    SX = 0x0200,
-    SW = 0x0400,
-    SR = 0x0800,
-    // File type
-    FIFO = 0x1000,
-    CHR = 0x2000,
-    DIR = 0x4000,
-    BLK = 0x6000,
-    REG = 0x8000,
-    LNK = 0xA000,
-    NAM = 0x5000,
+bitflags! {
+    /// POSIX permissions
+    #[repr(transparent)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct Permisions: u32 {
+        // Permissions for others
+        /// Other eXecutable
+        const OX = 0x0001;
+        /// Other Writable
+        const OW = 0x0002;
+        /// Other Readable
+        const OR = 0x0004;
+
+        // Permissions for group
+        /// Group eXecutable
+        const GX = 0x0008;
+        /// Group Writable
+        const GW = 0x0010;
+        /// Group Readable
+        const GR = 0x0020;
+
+        // Permissions for user
+        /// User eXecutable
+        const UX = 0x0040;
+        /// User Writable
+        const UW = 0x0080;
+        /// User Readable
+        const UR = 0x0100;
+
+        // Special permissions
+        /// Special eXecutable
+        const SX = 0x0200;
+        /// Special Writable
+        const SW = 0x0400;
+        /// Special Readable
+        const SR = 0x0800;
+
+        // File type
+        /// FIFO (pipe)
+        const FIFO = 0x1000;
+        /// Character device
+        const CHR = 0x2000;
+        /// Directory
+        const DIR = 0x4000;
+        /// ???
+        const NAM = 0x5000;
+        /// Block device
+        const BLK = 0x6000;
+        /// Regular file
+        const REG = 0x8000;
+        /// Symbolic link
+        const LNK = 0xA000;
+        /// UNIX Socket
+        const SOCK = 0xC000;
+    }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+/// Owner information of the file.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Owner {
+    /// Unix-like ID of the user
     pub uid: u32,
+    /// Unix-like ID of the group
     pub gid: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+/// Time attribute of the file.
+///
+/// They are represented as seconds from Jan 1, 1970 in UTC.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Time {
+    /// Access time
     pub atime: u32,
+    /// Modification time
     pub mtime: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u32)]
-#[non_exhaustive]
-enum AttrFlags {
-    Size = 0x00000001,
-    Owner = 0x00000002,
-    Perms = 0x00000004,
-    Time = 0x00000008,
+bitflags! {
+    /// Flags indicating which attributes are present in [`Attrs`].
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[repr(transparent)]
+    struct AttrFlags: u32 {
+        /// internal: `SSH_FILEXFER_ATTR_SIZE`
+        const Size = 0x00000001;
+        /// internal: `SSH_FILEXFER_ATTR_UIDGID`
+        const Owner = 0x00000002;
+        /// internal: `SSH_FILEXFER_ATTR_PERMISSIONS`
+        const Perms = 0x00000004;
+        /// internal: `SSH_FILEXFER_ATTR_ACMODTIME`
+        const Time = 0x00000008;
+    }
 }
 
 impl Serialize for Attrs {
@@ -92,19 +150,19 @@ impl Serialize for Attrs {
     where
         S: serde::Serializer,
     {
-        let mut attr_flags = 0u32;
+        let mut attr_flags = AttrFlags::empty();
 
         if self.size.is_some() {
-            attr_flags |= AttrFlags::Size as u32;
+            attr_flags |= AttrFlags::Size;
         }
         if self.owner.is_some() {
-            attr_flags |= AttrFlags::Owner as u32;
+            attr_flags |= AttrFlags::Owner;
         }
         if self.perms.is_some() {
-            attr_flags |= AttrFlags::Perms as u32;
+            attr_flags |= AttrFlags::Perms;
         }
         if self.time.is_some() {
-            attr_flags |= AttrFlags::Time as u32;
+            attr_flags |= AttrFlags::Time;
         }
 
         let mut state = serializer.serialize_tuple(5)?;
@@ -150,30 +208,26 @@ impl<'de> Deserialize<'de> for Attrs {
                 let mut attrs = Attrs::default();
                 let attr_flags: u32 = next!(seq, "attr_flags");
 
-                let all_flags = AttrFlags::Size as u32
-                    | AttrFlags::Owner as u32
-                    | AttrFlags::Perms as u32
-                    | AttrFlags::Time as u32;
-                if attr_flags & !all_flags != 0 {
+                let Some(attr_flags) = AttrFlags::from_bits(attr_flags) else {
                     return Err(A::Error::custom("invalid attr"));
-                }
+                };
 
-                if (attr_flags & AttrFlags::Size as u32) != 0 {
+                if !(attr_flags & AttrFlags::Size).is_empty() {
                     attrs.size = Some(next!(seq, "attr_size"));
                 } else {
                     next!(seq, "attr_size");
                 }
-                if (attr_flags & AttrFlags::Owner as u32) != 0 {
+                if !(attr_flags & AttrFlags::Owner).is_empty() {
                     attrs.owner = Some(next!(seq, "attr_owner"));
                 } else {
                     next!(seq, "attr_owner");
                 }
-                if (attr_flags & AttrFlags::Perms as u32) != 0 {
+                if !(attr_flags & AttrFlags::Perms).is_empty() {
                     attrs.perms = Some(next!(seq, "attr_perms"));
                 } else {
                     next!(seq, "attr_perms");
                 }
-                if (attr_flags & AttrFlags::Time as u32) != 0 {
+                if !(attr_flags & AttrFlags::Time).is_empty() {
                     attrs.time = Some(next!(seq, "attr_time"));
                 } else {
                     next!(seq, "attr_time");
@@ -191,7 +245,7 @@ impl<'de> Deserialize<'de> for Attrs {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode, ATTRS_VALID},
-        Error,
+        WireFormatError,
     };
 
     use super::Attrs;
@@ -207,13 +261,16 @@ mod test {
     fn decode_failure() {
         for (_, encoded) in ATTRS_VALID {
             for i in 0..encoded.len() - 1 {
-                assert_eq!(fail_decode::<Attrs>(&encoded[..i]), Error::NotEnoughData);
+                assert_eq!(
+                    fail_decode::<Attrs>(&encoded[..i]),
+                    WireFormatError::NotEnoughData
+                );
             }
         }
 
         assert_eq!(
             fail_decode::<Attrs>(b"\0\0\x01\0"),
-            Error::Custom("invalid attr".to_string())
+            WireFormatError::Custom("invalid attr".to_string())
         );
     }
 }

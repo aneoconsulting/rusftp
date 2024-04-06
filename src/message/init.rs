@@ -19,9 +19,19 @@ use std::collections::BTreeMap;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Initialization packet.
+///
+/// It is answered with [`Version`](crate::Version).
+///
+/// internal: `SSH_FXP_INIT`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Init {
+    /// Maximal version of the protocol supported by the client
     pub version: u32,
+
+    /// List of extensions supported by the client
+    ///
+    /// Implementations MUST silently ignore any extensions whose name they do not recognize.
     #[serde(rename = "extensions_implicit_length")]
     pub extensions: BTreeMap<Bytes, Bytes>,
 }
@@ -30,7 +40,7 @@ pub struct Init {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error,
+        WireFormatError,
     };
 
     use super::Init;
@@ -66,7 +76,10 @@ mod test {
     #[test]
     fn decode_failure() {
         for i in 5..INIT_VALID.len() {
-            assert_eq!(fail_decode::<Init>(&INIT_VALID[..i]), Error::NotEnoughData);
+            assert_eq!(
+                fail_decode::<Init>(&INIT_VALID[..i]),
+                WireFormatError::NotEnoughData
+            );
         }
     }
 }

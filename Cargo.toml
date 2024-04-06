@@ -1,23 +1,29 @@
 [package]
 name = "rusftp"
-version = "0.1.1"
+version = "0.2.0-beta-0"
 authors = ["Florian Lemaitre <flemaitre@aneo.fr>"]
 description = "SFTP library based on russh"
 repository = "https://github.com/aneoconsulting/rusftp"
 license = "Apache-2.0"
 edition = "2021"
+readme = "README.md"
+keywords = ["russh", "sftp", "ssh2", "client"]
 include = ["**/*.rs", "Cargo.toml", "LICENSE", "README.md"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-trait = "0.1"
+bitflags = { version = "2.5", features = ["serde"] }
 bytes = { version = "1.6", features = ["serde"] }
 futures = "0.3"
+log = "0.4"
 russh = "0.43"
 serde = "1.0"
-tokio = "1.36"
+thiserror = "1.0"
+tokio = "1.37"
 
 [dev-dependencies]
+env_logger = "0.11"
 russh-keys = "0.43"
 tokio-test = "0.4"

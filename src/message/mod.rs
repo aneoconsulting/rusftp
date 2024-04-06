@@ -21,7 +21,7 @@ use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
 use crate::decoder::SftpDecoder;
 use crate::encoder::SftpEncoder;
-use crate::Error;
+use crate::WireFormatError;
 
 mod attrs;
 mod close;
@@ -67,7 +67,7 @@ pub use init::Init;
 pub use lstat::LStat;
 pub use mkdir::MkDir;
 pub use name::{Name, NameEntry};
-pub use open::{pflags, Open};
+pub use open::{Open, PFlags};
 pub use opendir::OpenDir;
 pub use path::Path;
 pub use read::Read;
@@ -246,12 +246,12 @@ macro_rules! messages {
             }
 
             impl TryFrom<Message> for $name {
-                type Error = ();
+                type Error = Message;
                 fn try_from(value: Message) -> Result<Self, Self::Error> {
                     if let Message::$name(value) = value {
                         Ok(value)
                     } else {
-                        Err(())
+                        Err(value)
                     }
                 }
             }
@@ -316,8 +316,8 @@ impl Message {
     pub fn code(&self) -> u8 {
         self.kind().code()
     }
-    pub fn encode(&self, id: u32) -> Result<Bytes, Error> {
-        let mut encoder = SftpEncoder::new(Vec::with_capacity(16));
+    pub fn encode(&self, id: u32) -> Result<Bytes, WireFormatError> {
+        let mut encoder = SftpEncoder::with_vec(Vec::with_capacity(16));
 
         // Reserve space for frame length
         encoder.buf.put_u32(0);
@@ -336,7 +336,7 @@ impl Message {
         Ok(encoder.buf.into())
     }
 
-    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), Error> {
+    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), WireFormatError> {
         let frame_length = buf.get_u32() as usize;
 
         // Limit the read to this very frame
@@ -348,8 +348,8 @@ impl Message {
     }
 }
 
-impl From<Error> for Message {
-    fn from(value: Error) -> Self {
+impl From<WireFormatError> for Message {
+    fn from(value: WireFormatError) -> Self {
         Self::Status(value.into())
     }
 }

@@ -17,8 +17,14 @@
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Generic reply for an extension.
+///
+/// It can be used to carry arbitrary extension-specific data from the server to the client.
+///
+/// internal: `SSH_FXP_EXTENDED`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExtendedReply {
+    /// Specific data needed by the extension to intrepret the reply
     #[serde(rename = "data_implicit_length")]
     pub data: Bytes,
 }

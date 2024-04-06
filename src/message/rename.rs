@@ -18,9 +18,16 @@ use serde::{Deserialize, Serialize};
 
 use super::Path;
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to rename/move a file or a directory.
+///
+/// It is answered with [`Status`](crate::Status).
+///
+/// internal: `SSH_FXP_RENAME`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Rename {
+    /// Current path of the file or directory to rename/move
     pub old_path: Path,
+    /// New path where the file or directory will be moved to
     pub new_path: Path,
 }
 
@@ -28,7 +35,7 @@ pub struct Rename {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error, Path,
+        Path, WireFormatError,
     };
 
     use super::Rename;
@@ -52,7 +59,7 @@ mod test {
         for i in 0..RENAME_VALID.len() {
             assert_eq!(
                 fail_decode::<Rename>(&RENAME_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

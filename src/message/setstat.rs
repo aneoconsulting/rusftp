@@ -18,9 +18,22 @@ use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to change the attributes (metadata) of a file or directory.
+///
+/// This request is used for operations such as changing the ownership,
+/// permissions or access times, as well as for truncating a file.
+///
+/// An error will be returned if the specified file system object does not exist
+/// or the user does not have sufficient rights to modify the specified attributes.
+///
+/// It is answered with [`Status`](crate::Status).
+///
+/// internal: `SSH_FXP_SETSTAT`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SetStat {
+    /// Path of the file or directory to change the attributes
     pub path: Path,
+    /// New attributes to apply
     pub attrs: Attrs,
 }
 
@@ -28,7 +41,7 @@ pub struct SetStat {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
     use super::SetStat;
@@ -55,7 +68,7 @@ mod test {
         for i in 0..SETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<SetStat>(&SETSTAT_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

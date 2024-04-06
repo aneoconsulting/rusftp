@@ -20,18 +20,44 @@ use std::{
     slice::SliceIndex,
 };
 
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::{Attrs, Path};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Arbitrary byte string containing the requested data.
+///
+/// The data string may be at most the number of bytes requested in a [`Read`](crate::Read) request,
+/// but may also be shorter if end of file is reached or if the read is from something other than a regular file.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NameEntry {
+    /// Path of the file or directory designated by this entry
+    ///
+    /// for [`ReadDir`](crate::ReadDir), it will be a relative name within the directory, without any path components.
+    ///
+    /// for [`RealPath`](crate::RealPath) it will be an absolute path name.
     pub filename: Path,
-    pub long_name: Path,
+
+    /// Expanded format of the filename with permissions and owner, à-la `ls -l`.
+    ///
+    /// Its format is unspecified by this protocol.
+    /// It MUST be suitable for use in the output of a directory listing command
+    /// (in fact, the recommended operation for a directory listing command is to simply display this data).
+    /// However, clients SHOULD NOT attempt to parse the longname field for file attributes;
+    /// they SHOULD use the attrs field instead.
+    pub long_name: Bytes,
+
+    /// Attributes of the file or directory designated by this entry
     pub attrs: Attrs,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Arbitrary byte string containing the requested data.
+///
+/// The data string may be at most the number of bytes requested in a [`Read`](crate::Read) request,
+/// but may also be shorter if end of file is reached or if the read is from something other than a regular file.
+///
+/// internal: `SSH_FXP_DATA`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Name(pub Vec<NameEntry>);
 
 impl IntoIterator for Name {
@@ -123,7 +149,7 @@ impl BorrowMut<[NameEntry]> for Name {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Error, Path,
+        Attrs, Path, WireFormatError,
     };
 
     use super::NameEntry;
@@ -137,7 +163,7 @@ mod test {
         encode_decode(
             NameEntry {
                 filename: Path(Bytes::from_static(b"filename")),
-                long_name: Path(Bytes::from_static(b"long name")),
+                long_name: Bytes::from_static(b"long name"),
                 attrs: Attrs {
                     size: Some(0xa7735),
                     ..Default::default()
@@ -152,7 +178,7 @@ mod test {
         for i in 0..NAME_VALID.len() {
             assert_eq!(
                 fail_decode::<NameEntry>(&NAME_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

@@ -18,10 +18,18 @@ use serde::{Deserialize, Serialize};
 
 use super::{Data, Handle};
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to write to a portion of an opened file.
+///
+/// It is answered with [`Status`](crate::Status).
+///
+/// internal: `SSH_FXP_WRITE`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Write {
+    /// Handle of the file to write to
     pub handle: Handle,
+    /// Byte offset where the write should start
     pub offset: u64,
+    /// Bytes to be written to the file
     pub data: Data,
 }
 
@@ -29,7 +37,7 @@ pub struct Write {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Data, Error, Handle,
+        Data, Handle, WireFormatError,
     };
 
     use super::Write;
@@ -54,7 +62,7 @@ mod test {
         for i in 0..WRITE_VALID.len() {
             assert_eq!(
                 fail_decode::<Write>(&WRITE_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }

@@ -18,10 +18,19 @@ use serde::{Deserialize, Serialize};
 
 use super::Handle;
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// Request to read a portion of an opened file.
+///
+/// It is answered with [`Data`](crate::Data) in case of success
+/// and [`Status`](crate::Status) in case of failure.
+///
+/// internal: `SSH_FXP_READ`
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Read {
+    /// Handle of the file to read from
     pub handle: Handle,
+    /// Byte offset where the read should start
     pub offset: u64,
+    /// Number of bytes to read
     pub length: u32,
 }
 
@@ -29,7 +38,7 @@ pub struct Read {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Error, Handle,
+        Handle, WireFormatError,
     };
 
     use super::Read;
@@ -55,7 +64,7 @@ mod test {
         for i in 0..FSETSTAT_VALID.len() {
             assert_eq!(
                 fail_decode::<Read>(&FSETSTAT_VALID[..i]),
-                Error::NotEnoughData
+                WireFormatError::NotEnoughData
             );
         }
     }
