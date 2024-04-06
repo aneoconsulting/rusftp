@@ -20,7 +20,7 @@ use crate::message::Path;
 
 /// Request to remove a file.
 ///
-/// It is answered with [`Status`](crate::Status).
+/// It is answered with [`Status`](crate::message::Status).
 ///
 /// internal: `SSH_FXP_REMOVE`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

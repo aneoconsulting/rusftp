@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 /// Initialization packet.
 ///
-/// It is answered with [`Version`](crate::Version).
+/// It is answered with [`Version`](crate::message::Version).
 ///
 /// internal: `SSH_FXP_INIT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -26,7 +26,7 @@ use crate::message::{Attrs, Handle};
 /// An error will be returned if the specified file system object does not exist
 /// or the user does not have sufficient rights to modify the specified attributes.
 ///
-/// It is answered with [`Status`](crate::Status).
+/// It is answered with [`Status`](crate::message::Status).
 ///
 /// internal: `SSH_FXP_FSETSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

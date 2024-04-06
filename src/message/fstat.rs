@@ -20,8 +20,8 @@ use crate::message::Handle;
 
 /// Request to read the attributes (metadata) of an open file or directory.
 ///
-/// It is answered with [`Attrs`](crate::Attrs) in case of success
-/// and [`Status`](crate::Status) in case of failure.
+/// It is answered with [`Attrs`](crate::message::Attrs) in case of success
+/// and [`Status`](crate::message::Status) in case of failure.
 ///
 /// internal: `SSH_FXP_FSTAT`
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

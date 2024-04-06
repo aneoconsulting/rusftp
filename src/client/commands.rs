@@ -136,7 +136,7 @@ impl SftpClient {
 
     /// Open a file for reading or writing.
     ///
-    /// Returns an [`Handle`](struct@crate::Handle) for the file specified.
+    /// Returns an [`Handle`] for the file specified.
     ///
     /// # Arguments
     ///
