@@ -17,10 +17,40 @@
 use std::{task::ready, task::Poll};
 
 use bytes::Bytes;
+use futures::Future;
 
-use crate::{ClientError, Handle, Status, StatusCode};
+use crate::{ClientError, Handle, Read, Status, StatusCode};
 
 use super::{File, OperationResult, PendingOperation};
+
+impl File {
+    /// Read a portion of the file.
+    ///
+    /// # Arguments
+    ///
+    /// * `offset`: Byte offset where the read should start
+    /// * `length`: Number of bytes to read
+    pub fn read(
+        &self,
+        offset: u64,
+        length: u32,
+    ) -> impl Future<Output = Result<Bytes, ClientError>> + Send + Sync + 'static {
+        let future = if let Some(handle) = &self.handle {
+            Ok(self.client.request(Read {
+                handle: Handle::clone(handle),
+                offset,
+                length,
+            }))
+        } else {
+            Err(ClientError::Io(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "File was already closed",
+            )))
+        };
+
+        async move { Ok(future?.await?.0) }
+    }
+}
 
 impl tokio::io::AsyncRead for File {
     fn poll_read(
@@ -43,7 +73,7 @@ impl tokio::io::AsyncRead for File {
                 let handle = Handle::clone(handle);
 
                 // Spawn the read future
-                let read = self.client.request(crate::Read {
+                let read = self.client.request(Read {
                     handle,
                     offset: self.offset,
                     length: buf.remaining().min(32768) as u32, // read at most 32K
