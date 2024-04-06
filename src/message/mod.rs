@@ -19,9 +19,7 @@ use std::borrow::Cow;
 use bytes::{Buf, BufMut, Bytes};
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
 
-use crate::decoder::SftpDecoder;
-use crate::encoder::SftpEncoder;
-use crate::WireFormatError;
+use crate::wire::{SftpDecoder, SftpEncoder, WireFormatError};
 
 mod attrs;
 mod close;

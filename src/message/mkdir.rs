@@ -37,7 +37,8 @@ pub struct MkDir {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Path, WireFormatError,
+        wire::WireFormatError,
+        Attrs, Path,
     };
 
     use super::MkDir;

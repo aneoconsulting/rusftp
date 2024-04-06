@@ -17,7 +17,7 @@
 use bytes::BufMut;
 use serde::ser;
 
-use crate::WireFormatError;
+use super::WireFormatError;
 
 /// Serde encoder for the SFTP wire format.
 #[derive(Default)]

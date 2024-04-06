@@ -41,7 +41,8 @@ pub struct FSetStat {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Attrs, Handle, WireFormatError,
+        wire::WireFormatError,
+        Attrs, Handle,
     };
 
     use super::FSetStat;

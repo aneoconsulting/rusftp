@@ -35,7 +35,8 @@ pub struct Rename {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        Path, WireFormatError,
+        wire::WireFormatError,
+        Path,
     };
 
     use super::Rename;

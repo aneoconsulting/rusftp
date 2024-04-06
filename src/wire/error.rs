@@ -23,7 +23,7 @@ pub enum WireFormatError {
     #[error("Not enough data")]
     NotEnoughData,
 
-    /// Unsupported character set
+    /// Unsupported Serialization/Deserialization operation
     #[error("Unsupported operation")]
     Unsupported,
 

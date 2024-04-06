@@ -40,7 +40,7 @@ pub struct Init {
 mod test {
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
-        WireFormatError,
+        wire::WireFormatError,
     };
 
     use super::Init;
