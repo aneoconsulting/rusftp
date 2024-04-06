@@ -18,7 +18,7 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{wire::WireFormatError, Message};
+use crate::Message;
 
 /// Status code of an operation.
 ///
@@ -190,80 +190,6 @@ impl TryFrom<u32> for StatusCode {
         } else {
             Err(value)
         }
-    }
-}
-
-impl From<std::io::ErrorKind> for StatusCode {
-    fn from(value: std::io::ErrorKind) -> Self {
-        match value {
-            std::io::ErrorKind::NotFound => Self::NoSuchFile,
-            std::io::ErrorKind::PermissionDenied => Self::PermissionDenied,
-            std::io::ErrorKind::ConnectionRefused => Self::NoConnection,
-            std::io::ErrorKind::ConnectionReset => Self::ConnectionLost,
-            std::io::ErrorKind::ConnectionAborted => Self::ConnectionLost,
-            std::io::ErrorKind::NotConnected => Self::NoConnection,
-            std::io::ErrorKind::InvalidInput => Self::BadMessage,
-            std::io::ErrorKind::InvalidData => Self::BadMessage,
-            std::io::ErrorKind::Unsupported => Self::OpUnsupported,
-            std::io::ErrorKind::UnexpectedEof => Self::Eof,
-            _ => Self::Failure,
-        }
-    }
-}
-
-impl From<std::io::Error> for Status {
-    fn from(value: std::io::Error) -> Self {
-        Self {
-            code: StatusCode::from(value.kind()),
-            error: value.to_string().into(),
-            language: "en".into(),
-        }
-    }
-}
-
-impl From<russh::Error> for Status {
-    fn from(value: russh::Error) -> Self {
-        let status_code = match value {
-            russh::Error::ChannelOpenFailure(_) => StatusCode::NoConnection,
-            russh::Error::Disconnect => StatusCode::ConnectionLost,
-            russh::Error::IO(io) => {
-                return io.into();
-            }
-            _ => StatusCode::Failure,
-        };
-        Self {
-            code: status_code,
-            error: value.to_string().into(),
-            language: "en".into(),
-        }
-    }
-}
-
-impl From<WireFormatError> for Status {
-    fn from(error: WireFormatError) -> Self {
-        Self {
-            code: StatusCode::BadMessage,
-            error: error.to_string().into(),
-            language: "en".into(),
-        }
-    }
-}
-
-impl From<Status> for std::io::Error {
-    fn from(value: Status) -> Self {
-        let kind = match value.code {
-            StatusCode::Ok => std::io::ErrorKind::Other,
-            StatusCode::Eof => std::io::ErrorKind::UnexpectedEof,
-            StatusCode::NoSuchFile => std::io::ErrorKind::NotFound,
-            StatusCode::PermissionDenied => std::io::ErrorKind::PermissionDenied,
-            StatusCode::Failure => std::io::ErrorKind::Other,
-            StatusCode::BadMessage => std::io::ErrorKind::InvalidData,
-            StatusCode::NoConnection => std::io::ErrorKind::Other,
-            StatusCode::ConnectionLost => std::io::ErrorKind::Other,
-            StatusCode::OpUnsupported => std::io::ErrorKind::Unsupported,
-        };
-
-        Self::new(kind, value)
     }
 }
 

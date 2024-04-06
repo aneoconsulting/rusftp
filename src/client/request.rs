@@ -41,7 +41,7 @@ impl SftpClient {
                 Ok(Message::Status(status)) => Err(status.into()),
                 Ok(msg) => {
                     let (tx, rx) = oneshot::channel();
-                    match commands.send((msg, tx)) {
+                    match commands.send(super::receiver::Request(msg, tx)) {
                         Ok(()) => Ok(rx),
                         Err(err) => {
                             Err(StatusCode::Failure.to_status(err.to_string().into()).into())
@@ -60,7 +60,7 @@ impl SftpClient {
 
         async move {
             match sent?.await {
-                Ok(msg) => R::from_reply_message(msg),
+                Ok(msg) => R::from_reply_message(msg?),
                 Err(_) => Err(std::io::Error::new(
                     std::io::ErrorKind::ConnectionReset,
                     "Could not get reply from SFTP client",

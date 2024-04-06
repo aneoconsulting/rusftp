@@ -346,24 +346,6 @@ impl Message {
     }
 }
 
-impl From<WireFormatError> for Message {
-    fn from(value: WireFormatError) -> Self {
-        Self::Status(value.into())
-    }
-}
-
-impl From<std::io::Error> for Message {
-    fn from(value: std::io::Error) -> Self {
-        Self::Status(value.into())
-    }
-}
-
-impl From<russh::Error> for Message {
-    fn from(value: russh::Error) -> Self {
-        Self::Status(value.into())
-    }
-}
-
 /*
 SFTP protocol frame
 

@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use russh::{client::Msg, Channel, ChannelMsg};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::{message, Message, StatusCode};
@@ -65,7 +65,7 @@ pub use request::SftpRequest;
 /// ```
 #[derive(Default, Clone)]
 pub struct SftpClient {
-    commands: Option<mpsc::UnboundedSender<(Message, oneshot::Sender<Message>)>>,
+    commands: Option<mpsc::UnboundedSender<receiver::Request>>,
     request_processor: Option<Arc<JoinHandle<()>>>,
 }
 

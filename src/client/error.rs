@@ -16,16 +16,18 @@
 
 use thiserror::Error;
 
+use crate::StatusCode;
+
 /// SFTP client error
 #[derive(Debug, Error)]
 pub enum ClientError {
     /// Error sent from SFTP server
     #[error(transparent)]
-    Sftp(crate::Status),
+    Sftp(#[from] crate::Status),
 
     /// Encoding or Decoding error
     #[error(transparent)]
-    WireFormat(crate::wire::WireFormatError),
+    WireFormat(#[from] crate::wire::WireFormatError),
 
     /// SSH error
     #[error(transparent)]
@@ -33,21 +35,8 @@ pub enum ClientError {
 
     /// IO error
     #[error(transparent)]
-    Io(std::io::Error),
+    Io(#[from] std::io::Error),
 }
-
-impl From<crate::Status> for ClientError {
-    fn from(value: crate::Status) -> Self {
-        ClientError::Sftp(value)
-    }
-}
-
-impl From<crate::wire::WireFormatError> for ClientError {
-    fn from(value: crate::wire::WireFormatError) -> Self {
-        ClientError::WireFormat(value)
-    }
-}
-
 impl From<russh::Error> for ClientError {
     fn from(value: russh::Error) -> Self {
         match value {
@@ -57,16 +46,24 @@ impl From<russh::Error> for ClientError {
     }
 }
 
-impl From<std::io::Error> for ClientError {
-    fn from(value: std::io::Error) -> Self {
-        ClientError::Io(value)
-    }
-}
-
 impl From<ClientError> for std::io::Error {
     fn from(value: ClientError) -> Self {
         match value {
-            ClientError::Sftp(sftp) => sftp.into(),
+            ClientError::Sftp(sftp) => {
+                let kind = match sftp.code {
+                    StatusCode::Ok => std::io::ErrorKind::Other,
+                    StatusCode::Eof => std::io::ErrorKind::UnexpectedEof,
+                    StatusCode::NoSuchFile => std::io::ErrorKind::NotFound,
+                    StatusCode::PermissionDenied => std::io::ErrorKind::PermissionDenied,
+                    StatusCode::Failure => std::io::ErrorKind::Other,
+                    StatusCode::BadMessage => std::io::ErrorKind::InvalidData,
+                    StatusCode::NoConnection => std::io::ErrorKind::Other,
+                    StatusCode::ConnectionLost => std::io::ErrorKind::Other,
+                    StatusCode::OpUnsupported => std::io::ErrorKind::Unsupported,
+                };
+
+                Self::new(kind, sftp)
+            }
             ClientError::WireFormat(wire) => std::io::Error::new(std::io::ErrorKind::Other, wire),
             ClientError::Ssh(russh::Error::IO(io)) => io,
             ClientError::Ssh(ssh) => std::io::Error::new(std::io::ErrorKind::Other, ssh),
