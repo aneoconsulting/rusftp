@@ -14,11 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{pin::Pin, task::ready, task::Poll};
+use std::{future::Future, pin::Pin, task::ready, task::Poll};
 
-use futures::Future;
-
-use crate::client::Error;
+use crate::client::{Error, SftpFuture, SftpReply, SftpRequest};
 use crate::message::{Close, Data, Handle, Write};
 
 use super::{File, OperationResult, PendingOperation};
@@ -41,25 +39,15 @@ impl File {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn write(
-        &self,
-        offset: u64,
-        data: impl Into<Data>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
-        let future = if let Some(handle) = &self.handle {
-            Ok(self.client.request(Write {
-                handle: Handle::clone(handle),
-                offset,
-                data: data.into(),
-            }))
+    pub fn write(&self, offset: u64, data: impl Into<Data>) -> SftpFuture {
+        if let Some(handle) = &self.handle {
+            self.client.write(Handle::clone(handle), offset, data)
         } else {
-            Err(Error::Io(std::io::Error::new(
+            SftpFuture::Error(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))
-        };
-
-        async move { future?.await }
+        }
     }
 }
 
@@ -85,22 +73,25 @@ impl tokio::io::AsyncWrite for File {
                 let length = buf.len().min(32768); // write at most 32K
 
                 // Spawn the write future
-                let write = self.client.request(Write {
-                    handle,
-                    offset: self.offset,
-                    data: buf[0..length].to_owned().into(),
-                });
-
-                self.pending = PendingOperation::Write(Box::pin(async move {
-                    match write.await {
-                        Ok(()) => Ok(length),
-                        Err(status) => Err(std::io::Error::from(status)),
-                    }
-                }));
+                self.pending = PendingOperation::Write(
+                    self.client.request_with(
+                        Write {
+                            handle,
+                            offset: self.offset,
+                            data: buf[0..length].to_owned().into(),
+                        }
+                        .to_request_message(),
+                        length,
+                        |length, msg| {
+                            <()>::from_reply_message(msg)?;
+                            Ok(length)
+                        },
+                    ),
+                );
 
                 // Try polling immediately
                 if let PendingOperation::Write(pending) = &mut self.pending {
-                    ready!(pending.as_mut().poll(cx))
+                    ready!(Pin::new(pending).poll(cx))
                 } else {
                     unreachable!()
                 }
@@ -113,7 +104,7 @@ impl tokio::io::AsyncWrite for File {
                 self.offset += len as u64;
                 std::task::Poll::Ready(Ok(len))
             }
-            Err(err) => Poll::Ready(Err(err)),
+            Err(err) => Poll::Ready(Err(err.into())),
         }
     }
 
@@ -128,7 +119,7 @@ impl tokio::io::AsyncWrite for File {
 
                 Poll::Ready(Ok(()))
             }
-            OperationResult::Write(Err(err)) => Poll::Ready(Err(err)),
+            OperationResult::Write(Err(err)) => Poll::Ready(Err(err.into())),
             _ => Poll::Ready(Ok(())),
         }
     }
@@ -149,15 +140,11 @@ impl tokio::io::AsyncWrite for File {
                 let handle = Handle::clone(handle);
 
                 // Spawn the close future
-                let close = self.client.request(Close { handle });
-
-                self.pending = PendingOperation::Close(Box::pin(async move {
-                    close.await.map_err(std::io::Error::from)
-                }));
+                self.pending = PendingOperation::Close(self.client.request(Close { handle }));
 
                 // Try polling immediately
                 if let PendingOperation::Close(pending) = &mut self.pending {
-                    ready!(pending.as_mut().poll(cx))
+                    ready!(Pin::new(pending).poll(cx))
                 } else {
                     unreachable!()
                 }
@@ -165,6 +152,6 @@ impl tokio::io::AsyncWrite for File {
         };
 
         // Poll is ready
-        Poll::Ready(result)
+        Poll::Ready(result.map_err(Into::into))
     }
 }

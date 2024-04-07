@@ -20,7 +20,7 @@ use std::{
     task::{ready, Poll},
 };
 
-use crate::client::{Error, SftpClientStopping};
+use crate::client::{Error, SftpClientStopping, SftpFuture};
 use crate::message::Handle;
 
 use super::Dir;
@@ -73,7 +73,7 @@ enum DirClosingState<'a> {
     Closing {
         dir: &'a mut Dir,
         handle: Handle,
-        pending: Pin<Box<dyn Future<Output = Result<(), Error>> + Send + Sync + 'static>>,
+        pending: SftpFuture,
     },
     Stopping(SftpClientStopping<'a>),
     Closed,
@@ -88,7 +88,7 @@ impl<'a> DirClosing<'a> {
             return DirClosing(DirClosingState::Closing {
                 dir,
                 handle,
-                pending: Box::pin(pending),
+                pending,
             });
         };
 
@@ -120,7 +120,7 @@ impl Future for DirClosing<'_> {
         loop {
             match &mut self.0 {
                 DirClosingState::Closing { pending, .. } => {
-                    if let Err(err) = ready!(pending.as_mut().poll(cx)) {
+                    if let Err(err) = ready!(Pin::new(pending).poll(cx)) {
                         return Poll::Ready(Err(err));
                     }
 

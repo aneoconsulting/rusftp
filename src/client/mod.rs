@@ -38,7 +38,7 @@ mod stop;
 pub use dir::{Dir, DIR_CLOSED};
 pub use error::Error;
 pub use file::{File, FILE_CLOSED};
-pub use request::SftpRequest;
+pub use request::{SftpFuture, SftpReply, SftpRequest};
 use stop::SftpClientStopping;
 
 /// SFTP client
