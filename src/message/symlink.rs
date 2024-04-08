@@ -40,7 +40,6 @@ mod test {
     use crate::wire::Error;
 
     use super::Symlink;
-    use bytes::Bytes;
 
     const SYMLINK_VALID: &[u8] = b"\0\0\0\x04link\0\0\0\x06target";
 
@@ -48,8 +47,8 @@ mod test {
     fn encode_success() {
         encode_decode(
             Symlink {
-                link_path: Path(Bytes::from_static(b"link")),
-                target_path: Path(Bytes::from_static(b"target")),
+                link_path: Path("link".to_owned()),
+                target_path: Path("target".to_owned()),
             },
             SYMLINK_VALID,
         );

@@ -163,7 +163,7 @@ mod test {
     fn encode_success() {
         encode_decode(
             NameEntry {
-                filename: Path(Bytes::from_static(b"filename")),
+                filename: Path("filename".to_owned()),
                 long_name: Bytes::from_static(b"long name"),
                 attrs: Attrs {
                     size: Some(0xa7735),

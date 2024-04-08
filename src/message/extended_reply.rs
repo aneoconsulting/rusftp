@@ -41,9 +41,9 @@ mod test {
         for (bytes, _) in BYTES_VALID {
             encode_decode(
                 ExtendedReply {
-                    data: Bytes::from_static(bytes),
+                    data: Bytes::from(bytes),
                 },
-                bytes,
+                bytes.as_bytes(),
             );
         }
     }

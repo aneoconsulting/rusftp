@@ -16,7 +16,6 @@
 
 use std::{borrow::Borrow, ops::Deref};
 
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 /// Path component on the remote server.
@@ -24,19 +23,19 @@ use serde::{Deserialize, Serialize};
 /// It can be a path relative to the current work directory on the remote server,
 /// or it can be an absolute path.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Path(pub Bytes);
+pub struct Path(pub String);
 
-impl<T: crate::utils::IntoBytes> From<T> for Path {
+impl<T: Into<String>> From<T> for Path {
     fn from(value: T) -> Self {
-        Path(value.into_bytes())
+        Path(value.into())
     }
 }
 
 impl Deref for Path {
-    type Target = [u8];
+    type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        self.as_ref()
+        self.0.as_ref()
     }
 }
 
@@ -46,9 +45,15 @@ impl AsRef<[u8]> for Path {
     }
 }
 
-impl Borrow<[u8]> for Path {
-    fn borrow(&self) -> &[u8] {
-        self.0.borrow()
+impl AsRef<str> for Path {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl Borrow<str> for Path {
+    fn borrow(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
@@ -57,12 +62,11 @@ mod test {
     use crate::message::test_utils::{encode_decode, fail_decode, BYTES_INVALID, BYTES_VALID};
 
     use super::Path;
-    use bytes::Bytes;
 
     #[test]
     fn encode_success() {
         for (bytes, encoded) in BYTES_VALID {
-            encode_decode(Path(Bytes::from_static(bytes)), encoded);
+            encode_decode(Path(bytes.to_owned()), encoded);
         }
     }
 

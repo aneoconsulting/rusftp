@@ -33,19 +33,19 @@ where
     }
 }
 
-pub(crate) const BYTES_VALID: [(&[u8], &[u8]); 8] = [
-    (b"" as &[u8], b"\0\0\0\0" as &[u8]),
-    (b"\0", b"\0\0\0\x01\0"),
-    (b"\0\0", b"\0\0\0\x02\0\0"),
-    (b"byte string", b"\0\0\0\x0bbyte string"),
+pub(crate) const BYTES_VALID: [(&str, &[u8]); 8] = [
+    ("" as &str, b"\0\0\0\0" as &[u8]),
+    ("\0", b"\0\0\0\x01\0"),
+    ("\0\0", b"\0\0\0\x02\0\0"),
+    ("byte string", b"\0\0\0\x0bbyte string"),
     (
-        b"byte string with\nline returns and spaces",
+        "byte string with\nline returns and spaces",
         b"\0\0\0\x28byte string with\nline returns and spaces",
     ),
-    (b"null\0bytes", b"\0\0\0\x0anull\0bytes"),
-    (b"null\0bytes\0", b"\0\0\0\x0bnull\0bytes\0"),
+    ("null\0bytes", b"\0\0\0\x0anull\0bytes"),
+    ("null\0bytes\0", b"\0\0\0\x0bnull\0bytes\0"),
     (
-        b"this is a very long byte string that should be larger than 256 bytes and would therefore need a size encoded into two bytes. This serve as a good example of very long messages to ensure the logic is well defined for large inputs like this one. And I ran out of description for this very long byte string so here it is: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        "this is a very long byte string that should be larger than 256 bytes and would therefore need a size encoded into two bytes. This serve as a good example of very long messages to ensure the logic is well defined for large inputs like this one. And I ran out of description for this very long byte string so here it is: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
         b"\0\0\x01\xbathis is a very long byte string that should be larger than 256 bytes and would therefore need a size encoded into two bytes. This serve as a good example of very long messages to ensure the logic is well defined for large inputs like this one. And I ran out of description for this very long byte string so here it is: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
     ),
 ];

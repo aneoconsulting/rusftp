@@ -83,7 +83,6 @@ mod test {
     use crate::wire::Error;
 
     use super::{Open, PFlags};
-    use bytes::Bytes;
 
     const OPEN_VALID: &[u8] = b"\0\0\0\x08filename\0\0\0\x09\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
 
@@ -91,7 +90,7 @@ mod test {
     fn encode_success() {
         encode_decode(
             Open {
-                filename: Path(Bytes::from_static(b"filename")),
+                filename: Path("filename".to_owned()),
                 pflags: PFlags::READ | PFlags::CREATE,
                 attrs: Attrs {
                     size: Some(0xa7735),
