@@ -18,8 +18,6 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::message::Message;
-
 /// Status code of an operation.
 ///
 /// `OK` indicates that the operations has been successful.
@@ -131,7 +129,8 @@ impl Status {
 }
 
 impl StatusCode {
-    pub fn to_status(self, msg: Bytes) -> Status {
+    pub fn to_status(self, msg: impl crate::utils::IntoBytes) -> Status {
+        let msg = msg.into_bytes();
         let msg = if msg.is_empty() {
             self.to_string().into()
         } else {
@@ -143,10 +142,6 @@ impl StatusCode {
             error: msg,
             language: "en".into(),
         }
-    }
-
-    pub fn to_message(self, msg: Bytes) -> Message {
-        Message::Status(self.to_status(msg))
     }
 }
 

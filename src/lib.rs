@@ -43,3 +43,5 @@ pub use russh;
 pub mod client;
 pub mod message;
 pub mod wire;
+
+pub mod utils;

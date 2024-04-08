@@ -125,13 +125,11 @@ impl SftpClient {
                         // Invalid responses: abort
                         Ok((_, Message::Version(_))) => {
                             return Err(StatusCode::BadMessage
-                                .to_status("Invalid sftp version".into())
+                                .to_status("Invalid sftp version")
                                 .into());
                         }
                         Ok(_) => {
-                            return Err(StatusCode::BadMessage
-                                .to_status("Bad SFTP init".into())
-                                .into());
+                            return Err(StatusCode::BadMessage.to_status("Bad SFTP init").into());
                         }
                         Err(err) => {
                             return Err(err.into());
@@ -143,7 +141,7 @@ impl SftpClient {
                 // Channel has been closed
                 None => {
                     return Err(StatusCode::BadMessage
-                        .to_status("Failed to start SFTP subsystem".into())
+                        .to_status("Failed to start SFTP subsystem")
                         .into());
                 }
             }

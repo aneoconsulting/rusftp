@@ -23,6 +23,7 @@ use crate::message::{
     Name, Open, OpenDir, PFlags, Path, Read, ReadDir, ReadLink, RealPath, Remove, Rename, RmDir,
     SetStat, Stat, Status, Symlink, Write,
 };
+use crate::utils::IntoBytes;
 
 impl SftpClient {
     /// Close an opened file or directory.
@@ -62,11 +63,11 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn extended(&self, request: impl Into<Bytes>, data: impl Into<Bytes>) -> SftpFuture<Bytes> {
+    pub fn extended(&self, request: impl IntoBytes, data: impl IntoBytes) -> SftpFuture<Bytes> {
         self.request_with(
             Extended {
-                request: request.into(),
-                data: data.into(),
+                request: request.into_bytes(),
+                data: data.into_bytes(),
             }
             .to_request_message(),
             (),
@@ -718,12 +719,10 @@ impl SftpClient {
 /// It fails if the message is not a [`Name`], or if it has not exactly one entry.
 fn extract_path_from_name_message(_: (), msg: Message) -> Result<Path, Error> {
     match Name::from_reply_message(msg)?.as_mut() {
-        [] => Err(Error::Sftp(
-            StatusCode::BadMessage.to_status("No entry".into()),
-        )),
+        [] => Err(Error::Sftp(StatusCode::BadMessage.to_status("No entry"))),
         [entry] => Ok(std::mem::take(entry).filename),
         _ => Err(Error::Sftp(
-            StatusCode::BadMessage.to_status("Multiple entries".into()),
+            StatusCode::BadMessage.to_status("Multiple entries"),
         )),
     }
 }

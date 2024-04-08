@@ -121,7 +121,7 @@ impl SftpClient {
                     ..
                 })) => SftpFuture::Error(
                     StatusCode::BadMessage
-                        .to_status("Tried to send an OK status message to the server".into())
+                        .to_status("Tried to send an OK status message to the server")
                         .into(),
                 ),
                 Ok(Message::Status(status)) => SftpFuture::Error(status.into()),
@@ -133,9 +133,9 @@ impl SftpClient {
                             state,
                             f,
                         },
-                        Err(err) => SftpFuture::Error(
-                            StatusCode::Failure.to_status(err.to_string().into()).into(),
-                        ),
+                        Err(err) => {
+                            SftpFuture::Error(StatusCode::Failure.to_status(err.to_string()).into())
+                        }
                     }
                 }
                 Err(err) => SftpFuture::Error(err),
@@ -260,7 +260,7 @@ impl SftpReply for () {
     fn from_reply_message(msg: Message) -> Result<Self, Error> {
         match msg {
             Message::Status(status) => status.to_result(()),
-            _ => Err(StatusCode::BadMessage.to_status("Expected a status".into())),
+            _ => Err(StatusCode::BadMessage.to_status("Expected a status")),
         }
         .map_err(Into::into)
     }
@@ -295,7 +295,7 @@ macro_rules! reply_impl {
                     Message::$output(response) => Ok(response),
                     Message::Status(status) => Err(status),
                     _ => Err(StatusCode::BadMessage
-                        .to_status(std::stringify!(Expected a $output or a Status).into())),
+                        .to_status(std::stringify!(Expected a $output or a Status))),
                 }.map_err(Into::into)
             }
         }
