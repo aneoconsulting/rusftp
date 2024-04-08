@@ -21,7 +21,7 @@ use std::{
     task::{ready, Poll},
 };
 
-use crate::client::{Error, SftpClientStopping};
+use crate::client::{Error, SftpClientStopping, SftpFuture};
 use crate::message::Handle;
 
 use super::{File, PendingOperation};
@@ -69,7 +69,7 @@ enum FileClosingState<'a> {
     Closing {
         file: &'a mut File,
         handle: Handle,
-        pending: Pin<Box<dyn Future<Output = Result<(), Error>> + Send + Sync + 'static>>,
+        pending: SftpFuture,
     },
     Stopping(SftpClientStopping<'a>),
     Closed,
@@ -84,7 +84,7 @@ impl<'a> FileClosing<'a> {
                 return FileClosing(FileClosingState::Closing {
                     file,
                     handle,
-                    pending: Box::pin(pending),
+                    pending,
                 });
             }
         };
@@ -117,7 +117,7 @@ impl Future for FileClosing<'_> {
         loop {
             match &mut self.0 {
                 FileClosingState::Closing { pending, .. } => {
-                    if let Err(err) = ready!(pending.as_mut().poll(cx)) {
+                    if let Err(err) = ready!(Pin::new(pending).poll(cx)) {
                         return Poll::Ready(Err(err));
                     }
 

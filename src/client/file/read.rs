@@ -14,12 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{task::ready, task::Poll};
+use std::{future::Future, pin::Pin, task::ready, task::Poll};
 
 use bytes::Bytes;
-use futures::Future;
 
-use crate::client::Error;
+use crate::client::{Error, SftpFuture};
 use crate::message::{Handle, Read, Status, StatusCode};
 
 use super::{File, OperationResult, PendingOperation};
@@ -42,25 +41,15 @@ impl File {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn read(
-        &self,
-        offset: u64,
-        length: u32,
-    ) -> impl Future<Output = Result<Bytes, Error>> + Send + Sync + 'static {
-        let future = if let Some(handle) = &self.handle {
-            Ok(self.client.request(Read {
-                handle: Handle::clone(handle),
-                offset,
-                length,
-            }))
+    pub fn read(&self, offset: u64, length: u32) -> SftpFuture<Bytes> {
+        if let Some(handle) = &self.handle {
+            self.client.read(Handle::clone(handle), offset, length)
         } else {
-            Err(Error::Io(std::io::Error::new(
+            SftpFuture::Error(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))
-        };
-
-        async move { Ok(future?.await?.0) }
+        }
     }
 }
 
@@ -85,26 +74,15 @@ impl tokio::io::AsyncRead for File {
                 let handle = Handle::clone(handle);
 
                 // Spawn the read future
-                let read = self.client.request(Read {
+                self.pending = PendingOperation::Read(self.client.request(Read {
                     handle,
                     offset: self.offset,
                     length: buf.remaining().min(32768) as u32, // read at most 32K
-                });
-
-                self.pending = PendingOperation::Read(Box::pin(async move {
-                    match read.await {
-                        Ok(data) => Ok(data.0),
-                        Err(Error::Sftp(Status {
-                            code: StatusCode::Eof,
-                            ..
-                        })) => Ok(Bytes::default()),
-                        Err(status) => Err(status.into()),
-                    }
                 }));
 
                 // Try polling immediately
                 if let PendingOperation::Read(pending) = &mut self.pending {
-                    ready!(pending.as_mut().poll(cx))
+                    ready!(Pin::new(pending).poll(cx))
                 } else {
                     unreachable!()
                 }
@@ -114,15 +92,15 @@ impl tokio::io::AsyncRead for File {
         // Poll is ready, write to the buffer if it is a success
         match result {
             Ok(data) => {
-                if data.is_empty() {
-                    std::task::Poll::Ready(Ok(()))
-                } else {
-                    buf.put_slice(&data);
-                    self.offset += data.len() as u64;
-                    std::task::Poll::Ready(Ok(()))
-                }
+                buf.put_slice(&data);
+                self.offset += data.len() as u64;
+                std::task::Poll::Ready(Ok(()))
             }
-            Err(err) => Poll::Ready(Err(err)),
+            Err(Error::Sftp(Status {
+                code: StatusCode::Eof,
+                ..
+            })) => std::task::Poll::Ready(Ok(())),
+            Err(err) => Poll::Ready(Err(err.into())),
         }
     }
 }

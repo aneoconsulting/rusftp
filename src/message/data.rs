@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::Deref;
+use std::{borrow::Borrow, ops::Deref};
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
@@ -28,9 +28,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Data(pub Bytes);
 
-impl<T: Into<Bytes>> From<T> for Data {
+impl<T: crate::utils::IntoBytes> From<T> for Data {
     fn from(value: T) -> Self {
-        Self(value.into())
+        Data(value.into_bytes())
     }
 }
 
@@ -45,6 +45,12 @@ impl Deref for Data {
 impl AsRef<[u8]> for Data {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
+    }
+}
+
+impl Borrow<[u8]> for Data {
+    fn borrow(&self) -> &[u8] {
+        self.0.borrow()
     }
 }
 

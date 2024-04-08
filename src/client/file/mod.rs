@@ -23,10 +23,13 @@ use std::{
     task::{ready, Poll},
 };
 
-use bytes::Bytes;
-
-use crate::client::{Error, SftpClient};
 use crate::message::{self, Attrs, Handle};
+use crate::{
+    client::{Error, SftpClient},
+    message::Data,
+};
+
+use super::SftpFuture;
 
 mod close;
 mod read;
@@ -88,22 +91,25 @@ pub static FILE_CLOSED: File = File {
 
 impl File {
     /// Read the attributes (metadata) of the file.
-    pub fn stat(&self) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
-        let future = if let Some(handle) = &self.handle {
-            Ok(self.client.request(message::FStat {
+    ///
+    /// # Cancel safety
+    ///
+    /// It is safe to cancel the future.
+    /// However, the request is actually sent before the future is returned.
+    pub fn stat(&self) -> SftpFuture<Attrs> {
+        if let Some(handle) = &self.handle {
+            self.client.request(message::FStat {
                 handle: Handle::clone(handle),
-            }))
+            })
         } else {
-            Err(Error::Io(std::io::Error::new(
+            SftpFuture::Error(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))
-        };
-
-        async move { future?.await }
+        }
     }
 
-    /// change the attributes (metadata) of the file.
+    /// Change the attributes (metadata) of the file.
     ///
     /// This request is used for operations such as changing the ownership,
     /// permissions or access times.
@@ -114,23 +120,18 @@ impl File {
     /// # Arguments
     ///
     /// * `attrs` - New attributes to apply
-    pub fn set_stat(
-        &self,
-        attrs: Attrs,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
-        let future = if let Some(handle) = &self.handle {
-            Ok(self.client.request(message::FSetStat {
+    pub fn set_stat(&self, attrs: Attrs) -> SftpFuture {
+        if let Some(handle) = &self.handle {
+            self.client.request(message::FSetStat {
                 handle: Handle::clone(handle),
                 attrs,
-            }))
+            })
         } else {
-            Err(Error::Io(std::io::Error::new(
+            SftpFuture::Error(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "File was already closed",
             )))
-        };
-
-        async move { future?.await }
+        }
     }
 }
 
@@ -145,14 +146,12 @@ impl Clone for File {
     }
 }
 
-type PendingFuture<T> = Pin<Box<dyn Future<Output = T> + Send + Sync + 'static>>;
-
 enum PendingOperation {
     None,
-    Read(PendingFuture<std::io::Result<Bytes>>),
-    Seek(PendingFuture<std::io::Result<u64>>),
-    Write(PendingFuture<std::io::Result<usize>>),
-    Close(PendingFuture<std::io::Result<()>>),
+    Read(SftpFuture<Data>),
+    Seek(SftpFuture<u64, i64>),
+    Write(SftpFuture<usize, usize>),
+    Close(SftpFuture),
 }
 
 impl std::fmt::Debug for PendingOperation {
@@ -169,10 +168,10 @@ impl std::fmt::Debug for PendingOperation {
 
 enum OperationResult {
     None,
-    Read(std::io::Result<Bytes>),
-    Seek(std::io::Result<u64>),
-    Write(std::io::Result<usize>),
-    Close(std::io::Result<()>),
+    Read(Result<Data, Error>),
+    Seek(Result<u64, Error>),
+    Write(Result<usize, Error>),
+    Close(Result<(), Error>),
 }
 
 impl PendingOperation {
@@ -180,16 +179,16 @@ impl PendingOperation {
         let result = match self {
             PendingOperation::None => OperationResult::None,
             PendingOperation::Read(pending) => {
-                OperationResult::Read(ready!(pending.as_mut().poll(cx)))
+                OperationResult::Read(ready!(Pin::new(pending).poll(cx)))
             }
             PendingOperation::Seek(pending) => {
-                OperationResult::Seek(ready!(pending.as_mut().poll(cx)))
+                OperationResult::Seek(ready!(Pin::new(pending).poll(cx)))
             }
             PendingOperation::Write(pending) => {
-                OperationResult::Write(ready!(pending.as_mut().poll(cx)))
+                OperationResult::Write(ready!(Pin::new(pending).poll(cx)))
             }
             PendingOperation::Close(pending) => {
-                OperationResult::Close(ready!(pending.as_mut().poll(cx)))
+                OperationResult::Close(ready!(Pin::new(pending).poll(cx)))
             }
         };
 

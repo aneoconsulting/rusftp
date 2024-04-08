@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::Deref;
+use std::{borrow::Borrow, ops::Deref};
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
@@ -40,6 +40,12 @@ impl Deref for Handle {
 impl AsRef<[u8]> for Handle {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
+    }
+}
+
+impl Borrow<[u8]> for Handle {
+    fn borrow(&self) -> &[u8] {
+        self.0.borrow()
     }
 }
 

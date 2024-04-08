@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::task::ready;
 
 use crate::client::Error;
@@ -40,7 +42,7 @@ impl futures::Stream for Dir {
 
         let result = match &mut self.pending {
             Some(pending) => {
-                ready!(pending.as_mut().poll(cx))
+                ready!(Pin::new(pending).poll(cx))
             }
             None => {
                 let Some(handle) = &self.handle else {
@@ -56,9 +58,9 @@ impl futures::Stream for Dir {
                 let readdir = self.client.request(ReadDir {
                     handle: handle.clone(),
                 });
-                let pending = self.pending.insert(Box::pin(readdir));
+                let pending = self.pending.insert(readdir);
 
-                ready!(pending.as_mut().poll(cx))
+                ready!(Pin::new(pending).poll(cx))
             }
         };
 

@@ -19,6 +19,11 @@ use std::{
     task::{ready, Poll},
 };
 
+use crate::{
+    client::{Error, SftpReply, SftpRequest},
+    message::{Attrs, FStat, Handle},
+};
+
 use super::{File, OperationResult, PendingOperation};
 
 impl tokio::io::AsyncSeek for File {
@@ -31,22 +36,32 @@ impl tokio::io::AsyncSeek for File {
                 }
                 // Seek from end requires to stat the file first
                 std::io::SeekFrom::End(i) => {
-                    let stat = self.stat();
-                    self.pending = PendingOperation::Seek(Box::pin(async move {
-                        match stat.await?.size {
+                    // Get the current handle, valid only if the file is not closed
+                    let Some(handle) = &self.handle else {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::BrokenPipe,
+                            "File was closed",
+                        ));
+                    };
+                    let handle = Handle::clone(handle);
+
+                    self.pending = PendingOperation::Seek(self.client.request_with(
+                        FStat { handle }.to_request_message(),
+                        i,
+                        |i, msg| match Attrs::from_reply_message(msg)?.size {
                             Some(n) => match n.checked_add_signed(i) {
                                 Some(n) => Ok(n),
-                                None => Err(std::io::Error::new(
+                                None => Err(Error::Io(std::io::Error::new(
                                     std::io::ErrorKind::InvalidData,
                                     "Would seek to negative position",
-                                )),
+                                ))),
                             },
-                            None => Err(std::io::Error::new(
+                            None => Err(Error::Io(std::io::Error::new(
                                 std::io::ErrorKind::Unsupported,
                                 "Unable to seek from the end of file: could not get file size",
-                            )),
-                        }
-                    }));
+                            ))),
+                        },
+                    ));
                 }
                 // Seek from current can be performed immediately
                 std::io::SeekFrom::Current(i) => match self.offset.checked_add_signed(i) {
@@ -78,7 +93,7 @@ impl tokio::io::AsyncSeek for File {
                     self.offset = n;
                 }
 
-                Poll::Ready(seek)
+                Poll::Ready(seek.map_err(Into::into))
             }
             _ => Poll::Ready(Ok(self.offset)),
         }

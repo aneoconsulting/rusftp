@@ -17,12 +17,13 @@
 use bytes::Bytes;
 use futures::Future;
 
-use crate::client::{Dir, Error, File, SftpClient, StatusCode};
+use crate::client::{Dir, Error, File, SftpClient, SftpFuture, SftpReply, SftpRequest, StatusCode};
 use crate::message::{
-    Attrs, Close, Data, Extended, FSetStat, FStat, Handle, LStat, MkDir, Name, Open, OpenDir,
-    PFlags, Path, Read, ReadDir, ReadLink, RealPath, Remove, Rename, RmDir, SetStat, Stat, Status,
-    Symlink, Write,
+    Attrs, Close, Data, Extended, ExtendedReply, FSetStat, FStat, Handle, LStat, Message, MkDir,
+    Name, Open, OpenDir, PFlags, Path, Read, ReadDir, ReadLink, RealPath, Remove, Rename, RmDir,
+    SetStat, Stat, Status, Symlink, Write,
 };
+use crate::utils::IntoBytes;
 
 impl SftpClient {
     /// Close an opened file or directory.
@@ -41,10 +42,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn close(
-        &self,
-        handle: Handle,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn close(&self, handle: Handle) -> SftpFuture {
         self.request(Close { handle })
     }
 
@@ -65,16 +63,16 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn extended(
-        &self,
-        request: impl Into<Bytes>,
-        data: impl Into<Bytes>,
-    ) -> impl Future<Output = Result<Bytes, Error>> + Send + Sync + 'static {
-        let request = self.request(Extended {
-            request: request.into(),
-            data: data.into(),
-        });
-        async move { Ok(request.await?.data) }
+    pub fn extended(&self, request: impl IntoBytes, data: impl IntoBytes) -> SftpFuture<Bytes> {
+        self.request_with(
+            Extended {
+                request: request.into_bytes(),
+                data: data.into_bytes(),
+            }
+            .to_request_message(),
+            (),
+            |_, msg| Ok(ExtendedReply::from_reply_message(msg)?.data),
+        )
     }
 
     /// Change the attributes (metadata) of an open file or directory.
@@ -100,15 +98,11 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn fsetstat(
-        &self,
-        handle: Handle,
-        attrs: Attrs,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn fsetstat(&self, handle: Handle, attrs: Attrs) -> SftpFuture {
         self.request(FSetStat { handle, attrs })
     }
 
-    /// Read the attributes (metadata) of an open file or directory.
+    /// Read the attributes (metadata) of an open file.
     ///
     /// Equivalent to:
     ///
@@ -118,16 +112,13 @@ impl SftpClient {
     ///
     /// # Arguments
     ///
-    /// * `handle` - Handle of the open file or directory
+    /// * `handle` - Handle of the open file
     ///
     /// # Cancel safety
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn fstat(
-        &self,
-        handle: Handle,
-    ) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
+    pub fn fstat(&self, handle: Handle) -> SftpFuture<Attrs> {
         self.request(FStat { handle })
     }
 
@@ -149,10 +140,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn lstat(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
+    pub fn lstat(&self, path: impl Into<Path>) -> SftpFuture<Attrs> {
         self.request(LStat { path: path.into() })
     }
 
@@ -174,10 +162,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn mkdir(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn mkdir(&self, path: impl Into<Path>) -> SftpFuture {
         self.mkdir_with_attrs(path, Attrs::default())
     }
 
@@ -200,11 +185,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn mkdir_with_attrs(
-        &self,
-        path: impl Into<Path>,
-        attrs: Attrs,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn mkdir_with_attrs(&self, path: impl Into<Path>, attrs: Attrs) -> SftpFuture {
         self.request(MkDir {
             path: path.into(),
             attrs,
@@ -236,7 +217,7 @@ impl SftpClient {
         filename: impl Into<Path>,
         pflags: PFlags,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<Handle, Error>> + Send + Sync + 'static {
+    ) -> SftpFuture<Handle> {
         self.request(Open {
             filename: filename.into(),
             pflags,
@@ -269,11 +250,17 @@ impl SftpClient {
         filename: impl Into<Path>,
         pflags: PFlags,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
-        let request = self.open_handle(filename, pflags, attrs);
-        let client = self.clone();
-
-        async move { Ok(File::new(client, request.await?)) }
+    ) -> SftpFuture<File, SftpClient> {
+        self.request_with(
+            Open {
+                filename: filename.into(),
+                pflags,
+                attrs,
+            }
+            .to_request_message(),
+            self.clone(),
+            |client, msg| Ok(File::new(client, Handle::from_reply_message(msg)?)),
+        )
     }
 
     /// Open a file for reading or writing.
@@ -299,7 +286,7 @@ impl SftpClient {
         &self,
         filename: impl Into<Path>,
         pflags: PFlags,
-    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
+    ) -> SftpFuture<File, SftpClient> {
         self.open_with_flags_attrs(filename, pflags, Attrs::default())
     }
 
@@ -326,7 +313,7 @@ impl SftpClient {
         &self,
         filename: impl Into<Path>,
         attrs: Attrs,
-    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
+    ) -> SftpFuture<File, SftpClient> {
         self.open_with_flags_attrs(filename, PFlags::default(), attrs)
     }
 
@@ -348,10 +335,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn open(
-        &self,
-        filename: impl Into<Path>,
-    ) -> impl Future<Output = Result<File, Error>> + Send + Sync + 'static {
+    pub fn open(&self, filename: impl Into<Path>) -> SftpFuture<File, SftpClient> {
         self.open_with_flags_attrs(filename, PFlags::default(), Attrs::default())
     }
 
@@ -376,10 +360,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn opendir_handle(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Handle, Error>> + Send + Sync + 'static {
+    pub fn opendir_handle(&self, path: impl Into<Path>) -> SftpFuture<Handle> {
         self.request(OpenDir { path: path.into() })
     }
 
@@ -402,14 +383,12 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn opendir(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Dir, Error>> + Send + Sync + 'static {
-        let request = self.request(OpenDir { path: path.into() });
-        let client = self.clone();
-
-        async move { Ok(Dir::new(client, request.await?)) }
+    pub fn opendir(&self, path: impl Into<Path>) -> SftpFuture<Dir, SftpClient> {
+        self.request_with(
+            OpenDir { path: path.into() }.to_request_message(),
+            self.clone(),
+            |client, msg| Ok(Dir::new(client, Handle::from_reply_message(msg)?)),
+        )
     }
 
     /// Read a portion of an opened file.
@@ -430,19 +409,17 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn read(
-        &self,
-        handle: Handle,
-        offset: u64,
-        length: u32,
-    ) -> impl Future<Output = Result<Bytes, Error>> + Send + Sync + 'static {
-        let request = self.request(Read {
-            handle,
-            offset,
-            length,
-        });
-
-        async move { Ok(request.await?.0) }
+    pub fn read(&self, handle: Handle, offset: u64, length: u32) -> SftpFuture<Bytes> {
+        self.request_with(
+            Read {
+                handle,
+                offset,
+                length,
+            }
+            .to_request_message(),
+            (),
+            |_, msg| Ok(Handle::from_reply_message(msg)?.0),
+        )
     }
 
     /// Read a directory listing.
@@ -467,10 +444,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn readdir_handle(
-        &self,
-        handle: Handle,
-    ) -> impl Future<Output = Result<Name, Error>> + Send + Sync + 'static {
+    pub fn readdir_handle(&self, handle: Handle) -> SftpFuture<Name> {
         self.request(ReadDir { handle })
     }
 
@@ -538,23 +512,12 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn readlink(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Path, Error>> + Send + Sync + 'static {
-        let request = self.request(ReadLink { path: path.into() });
-
-        async move {
-            match request.await?.as_mut() {
-                [] => Err(Error::Sftp(
-                    StatusCode::BadMessage.to_status("No entry".into()),
-                )),
-                [entry] => Ok(std::mem::take(entry).filename),
-                _ => Err(Error::Sftp(
-                    StatusCode::BadMessage.to_status("Multiple entries".into()),
-                )),
-            }
-        }
+    pub fn readlink(&self, path: impl Into<Path>) -> SftpFuture<Path> {
+        self.request_with(
+            ReadLink { path: path.into() }.to_request_message(),
+            (),
+            extract_path_from_name_message,
+        )
     }
 
     /// Canonicalize a path.
@@ -573,23 +536,12 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn realpath(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Path, Error>> + Send + Sync + 'static {
-        let request = self.request(RealPath { path: path.into() });
-
-        async move {
-            match request.await?.as_mut() {
-                [] => Err(Error::Sftp(
-                    StatusCode::BadMessage.to_status("No entry".into()),
-                )),
-                [entry] => Ok(std::mem::take(entry).filename),
-                _ => Err(Error::Sftp(
-                    StatusCode::BadMessage.to_status("Multiple entries".into()),
-                )),
-            }
-        }
+    pub fn realpath(&self, path: impl Into<Path>) -> SftpFuture<Path> {
+        self.request_with(
+            RealPath { path: path.into() }.to_request_message(),
+            (),
+            extract_path_from_name_message,
+        )
     }
 
     /// Remove a file.
@@ -608,10 +560,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn remove(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn remove(&self, path: impl Into<Path>) -> SftpFuture {
         self.request(Remove { path: path.into() })
     }
 
@@ -632,11 +581,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn rename(
-        &self,
-        old_path: impl Into<Path>,
-        new_path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn rename(&self, old_path: impl Into<Path>, new_path: impl Into<Path>) -> SftpFuture {
         self.request(Rename {
             old_path: old_path.into(),
             new_path: new_path.into(),
@@ -663,10 +608,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn rmdir(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn rmdir(&self, path: impl Into<Path>) -> SftpFuture {
         self.request(RmDir { path: path.into() })
     }
 
@@ -693,11 +635,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn setstat(
-        &self,
-        path: impl Into<Path>,
-        attrs: Attrs,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn setstat(&self, path: impl Into<Path>, attrs: Attrs) -> SftpFuture {
         self.request(SetStat {
             path: path.into(),
             attrs,
@@ -722,10 +660,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn stat(
-        &self,
-        path: impl Into<Path>,
-    ) -> impl Future<Output = Result<Attrs, Error>> + Send + Sync + 'static {
+    pub fn stat(&self, path: impl Into<Path>) -> SftpFuture<Attrs> {
         self.request(Stat { path: path.into() })
     }
 
@@ -746,11 +681,7 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn symlink(
-        &self,
-        link_path: impl Into<Path>,
-        target_path: impl Into<Path>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn symlink(&self, link_path: impl Into<Path>, target_path: impl Into<Path>) -> SftpFuture {
         self.request(Symlink {
             link_path: link_path.into(),
             target_path: target_path.into(),
@@ -775,16 +706,23 @@ impl SftpClient {
     ///
     /// It is safe to cancel the future.
     /// However, the request is actually sent before the future is returned.
-    pub fn write(
-        &self,
-        handle: Handle,
-        offset: u64,
-        data: impl Into<Data>,
-    ) -> impl Future<Output = Result<(), Error>> + Send + Sync + 'static {
+    pub fn write(&self, handle: Handle, offset: u64, data: impl Into<Data>) -> SftpFuture {
         self.request(Write {
             handle,
             offset,
             data: data.into(),
         })
+    }
+}
+
+/// Convert a SFTP message into [`Name`], and extract its only entry.
+/// It fails if the message is not a [`Name`], or if it has not exactly one entry.
+fn extract_path_from_name_message(_: (), msg: Message) -> Result<Path, Error> {
+    match Name::from_reply_message(msg)?.as_mut() {
+        [] => Err(Error::Sftp(StatusCode::BadMessage.to_status("No entry"))),
+        [entry] => Ok(std::mem::take(entry).filename),
+        _ => Err(Error::Sftp(
+            StatusCode::BadMessage.to_status("Multiple entries"),
+        )),
     }
 }
