@@ -40,7 +40,6 @@ mod test {
     use crate::wire::Error;
 
     use super::Rename;
-    use bytes::Bytes;
 
     const RENAME_VALID: &[u8] = b"\0\0\0\x03old\0\0\0\x03new";
 
@@ -48,8 +47,8 @@ mod test {
     fn encode_success() {
         encode_decode(
             Rename {
-                old_path: Path(Bytes::from_static(b"old")),
-                new_path: Path(Bytes::from_static(b"new")),
+                old_path: Path("old".to_owned()),
+                new_path: Path("new".to_owned()),
             },
             RENAME_VALID,
         );

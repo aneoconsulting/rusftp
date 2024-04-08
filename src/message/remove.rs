@@ -37,14 +37,13 @@ mod test {
     };
 
     use super::Remove;
-    use bytes::Bytes;
 
     #[test]
     fn encode_success() {
         for (bytes, encoded) in BYTES_VALID {
             encode_decode(
                 Remove {
-                    path: Path(Bytes::from_static(bytes)),
+                    path: Path(bytes.to_owned()),
                 },
                 encoded,
             );

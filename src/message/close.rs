@@ -44,7 +44,7 @@ mod test {
         for (bytes, encoded) in BYTES_VALID {
             encode_decode(
                 Close {
-                    handle: Handle(Bytes::from_static(bytes)),
+                    handle: Handle(Bytes::from(bytes)),
                 },
                 encoded,
             );

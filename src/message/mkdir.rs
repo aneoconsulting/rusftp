@@ -42,7 +42,6 @@ mod test {
     use crate::wire::Error;
 
     use super::MkDir;
-    use bytes::Bytes;
 
     const MKDIR_VALID: &[u8] = b"\0\0\0\x04path\0\0\0\x01\0\0\0\0\0\x0a\x77\x35";
 
@@ -50,7 +49,7 @@ mod test {
     fn encode_success() {
         encode_decode(
             MkDir {
-                path: Path(Bytes::from_static(b"path")),
+                path: Path("path".to_owned()),
                 attrs: Attrs {
                     size: Some(0xa7735),
                     ..Default::default()

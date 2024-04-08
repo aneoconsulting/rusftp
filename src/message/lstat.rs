@@ -40,14 +40,13 @@ mod test {
     };
 
     use super::LStat;
-    use bytes::Bytes;
 
     #[test]
     fn encode_success() {
         for (bytes, encoded) in BYTES_VALID {
             encode_decode(
                 LStat {
-                    path: Path(Bytes::from_static(bytes)),
+                    path: Path(bytes.to_owned()),
                 },
                 encoded,
             );

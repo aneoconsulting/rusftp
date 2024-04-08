@@ -59,7 +59,7 @@ mod test {
     #[test]
     fn encode_success() {
         for (bytes, encoded) in BYTES_VALID {
-            encode_decode(Handle(Bytes::from_static(bytes)), encoded);
+            encode_decode(Handle(Bytes::from(bytes)), encoded);
         }
     }
 

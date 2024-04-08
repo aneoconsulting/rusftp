@@ -35,7 +35,7 @@ You can start multiple SFTP requests concurrently, even from multiple threads.
     - [x] File (`tokio::io` abstraction)
     - [x] Dir (`futures::stream` abstraction)
     - [x] All supported requests and messages
-    - [ ] Path abstraction (currently just a wrapper around Bytes)
+    - [x] Path abstraction
     - [ ] Support for well known SFTP extensions
     - [ ] User defined extensions
     - [ ] Support for direct Byte stream (ie: no [`russh`])
