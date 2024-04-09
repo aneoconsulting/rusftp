@@ -259,7 +259,11 @@ impl SftpReply for Message {
 impl SftpReply for () {
     fn from_reply_message(msg: Message) -> Result<Self, Error> {
         match msg {
-            Message::Status(status) => status.to_result(()),
+            Message::Status(Status {
+                code: StatusCode::Ok,
+                ..
+            }) => Ok(()),
+            Message::Status(status) => Err(status),
             _ => Err(StatusCode::BadMessage.to_status("Expected a status")),
         }
         .map_err(Into::into)

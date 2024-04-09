@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -106,33 +105,23 @@ pub struct Status {
     /// Code of the status, see [`StatusCode`]
     pub code: StatusCode,
     /// Message of the error
-    pub error: Bytes,
+    pub error: String,
     /// Language tag for the error message
-    pub language: Bytes,
-}
-
-impl Status {
-    pub fn is_ok(&self) -> bool {
-        self.code == StatusCode::Ok
-    }
-    pub fn is_err(&self) -> bool {
-        self.code != StatusCode::Ok
-    }
-
-    pub fn to_result<T>(self, value: T) -> Result<T, Self> {
-        if self.is_ok() {
-            Ok(value)
-        } else {
-            Err(self)
-        }
-    }
+    pub language: String,
 }
 
 impl StatusCode {
-    pub fn to_status(self, msg: impl crate::utils::IntoBytes) -> Status {
-        let msg = msg.into_bytes();
+    /// Create a [`Status`] from a [`StatusCode`] and a message.
+    ///
+    /// The message should be descriptive of the status and match the status code.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - Description of the status.
+    pub fn to_status(self, msg: impl Into<String>) -> Status {
+        let msg = msg.into();
         let msg = if msg.is_empty() {
-            self.to_string().into()
+            self.to_string()
         } else {
             msg
         };
@@ -160,40 +149,10 @@ impl std::fmt::Display for Status {
     }
 }
 
-impl TryFrom<u32> for StatusCode {
-    type Error = u32;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value == Self::Ok as u32 {
-            Ok(Self::Ok)
-        } else if value == Self::Eof as u32 {
-            Ok(Self::Eof)
-        } else if value == Self::NoSuchFile as u32 {
-            Ok(Self::NoSuchFile)
-        } else if value == Self::PermissionDenied as u32 {
-            Ok(Self::PermissionDenied)
-        } else if value == Self::Failure as u32 {
-            Ok(Self::Failure)
-        } else if value == Self::BadMessage as u32 {
-            Ok(Self::BadMessage)
-        } else if value == Self::NoConnection as u32 {
-            Ok(Self::NoConnection)
-        } else if value == Self::ConnectionLost as u32 {
-            Ok(Self::ConnectionLost)
-        } else if value == Self::OpUnsupported as u32 {
-            Ok(Self::OpUnsupported)
-        } else {
-            Err(value)
-        }
-    }
-}
-
 impl std::error::Error for Status {}
 
 #[cfg(test)]
 mod test {
-    use bytes::Bytes;
-
     use crate::{
         message::test_utils::{encode_decode, fail_decode},
         wire::Error,
@@ -222,8 +181,8 @@ mod test {
         encode_decode(
             Status {
                 code: StatusCode::Eof,
-                error: Bytes::from_static(b"eof"),
-                language: Bytes::from_static(b"en"),
+                error: String::from("eof"),
+                language: String::from("en"),
             },
             STATUS_VALID,
         );
