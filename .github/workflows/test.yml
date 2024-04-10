@@ -3,6 +3,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_call:
 
 name: Test
 
@@ -133,12 +134,13 @@ jobs:
           RUSTDOCFLAGS="-Dwarnings" cargo doc
       - name: Example
         if: matrix.target.os == 'linux' && matrix.target.run
+        timeout-minutes: 1
         run: |
           set -x
           for example in examples/*.rs; do
             example="${example#examples/}"
             example="${example%.rs}"
-            cargo run --locked --example "$example"
+            RUST_LOG=trace cargo run --locked --example "$example"
           done
       - name: Clippy
         run: |
