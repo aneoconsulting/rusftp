@@ -59,4 +59,4 @@ jobs:
         uses: actions/checkout@v2
       - name: Remove tag
         run: |
-          #git push --delete origin "$TAG"
+          git push --delete origin "$TAG"
