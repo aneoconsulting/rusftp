@@ -44,7 +44,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("> Connect to the ssh server");
     let config = Arc::new(russh::client::Config::default());
-    let mut ssh = russh::client::connect(config, ("localhost", 2222), Handler).await?;
+    let mut ssh = russh::client::connect(config, ("127.0.0.1", 2222), Handler).await?;
     ssh.authenticate_password("user", "pass").await?;
 
     println!("> Start SFTP client");

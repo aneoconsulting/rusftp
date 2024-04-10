@@ -72,6 +72,15 @@ jobs:
           - stable
           - nightly
     runs-on: ${{ matrix.target.runner }}
+    services:
+      sshd:
+        image: ${{ (matrix.target.os == 'linux') && 'atmoz/sftp:alpine' || '' }}
+        ports:
+          - 2222:22
+        env:
+          SFTP_USERS: user:pass:1000
+        volumes:
+          - /tmp:/home/user/tmp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -122,6 +131,15 @@ jobs:
         if: matrix.target.os == 'linux'
         run: |
           RUSTDOCFLAGS="-Dwarnings" cargo doc
+      - name: Example
+        if: matrix.target.os == 'linux' && matrix.target.run
+        run: |
+          set -x
+          for example in examples/*.rs; do
+            example="${example#examples/}"
+            example="${example%.rs}"
+            cargo run --locked --example "$example"
+          done
       - name: Clippy
         run: |
           cargo clippy --all --no-deps -- -Dwarnings -Dunused-crate-dependencies
