@@ -76,6 +76,10 @@ impl<'a> SftpClientStopping<'a> {
                     request_processor: Some(request_processor),
                 };
             }
+
+            log::trace!("Client still running");
+        } else {
+            log::trace!("stopped");
         }
 
         // If the current client is not the last of the session, nothing to wait

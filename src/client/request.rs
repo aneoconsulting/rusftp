@@ -127,6 +127,7 @@ impl SftpClient {
                 Ok(Message::Status(status)) => SftpFuture::Error(status.into()),
                 Ok(msg) => {
                     let (tx, rx) = oneshot::channel();
+                    log::trace!("Sending: {msg:?}");
                     match commands.send(super::receiver::Request(msg, tx)) {
                         Ok(()) => SftpFuture::Pending {
                             future: rx,
@@ -334,7 +335,7 @@ reply_impl!(ExtendedReply);
 
 /// Wrapper for [`SftpReply::from_reply_message`] that takes an empty state.
 ///
-/// Useful for `SftpClient::request_with`
+/// Useful for [`SftpClient::request_with`]
 fn stateless_from_reply_message<R: SftpReply>(_: (), msg: Message) -> Result<R, Error> {
     R::from_reply_message(msg)
 }

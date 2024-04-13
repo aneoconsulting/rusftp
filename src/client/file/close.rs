@@ -80,6 +80,7 @@ impl<'a> FileClosing<'a> {
         file.pending = PendingOperation::None;
         if let Some(handle) = file.handle.take() {
             if let Some(handle) = Arc::into_inner(handle) {
+                log::trace!("wait for closing");
                 let pending = file.client.close(handle.clone());
                 return FileClosing(FileClosingState::Closing {
                     file,
@@ -91,8 +92,10 @@ impl<'a> FileClosing<'a> {
 
         let stop = SftpClientStopping::new(&mut file.client);
         if stop.is_stopped() {
+            log::trace!("closed and stopped");
             FileClosing(FileClosingState::Closed)
         } else {
+            log::trace!("closed, wait for stopping");
             FileClosing(FileClosingState::Stopping(stop))
         }
     }
