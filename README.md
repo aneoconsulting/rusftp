@@ -1,5 +1,10 @@
 # RUSFTP
 
+![Crates.io License](https://img.shields.io/crates/l/rusftp)
+![Crates.io Version](https://img.shields.io/crates/v/rusftp)
+![docs.rs](https://img.shields.io/docsrs/rusftp)
+
+
 This is a SFTP implmentation based on [russh](https://crates.io/crates/russh).
 
 Links:
