@@ -25,6 +25,7 @@ use std::borrow::Cow;
 
 use bytes::{Buf, BufMut, Bytes};
 use serde::{ser::SerializeTuple, Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::wire::{Error, SftpDecoder, SftpEncoder};
 
@@ -117,6 +118,16 @@ macro_rules! messages {
             pub fn code(&self) -> u8 {
                 match self {
                     $(Self::$name => $discriminant,)*
+                }
+            }
+        }
+
+        impl TryFrom<u8> for MessageKind {
+            type Error = u8;
+            fn try_from(value: u8) -> Result<Self, Self::Error> {
+                match value {
+                    $($discriminant => Ok(MessageKind::$name),)*
+                    value => Err(value),
                 }
             }
         }
@@ -341,15 +352,51 @@ impl Message {
         Ok(encoder.buf.into())
     }
 
-    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), Error> {
+    pub fn decode(mut buf: &[u8]) -> Result<(u32, Self), DecodeError> {
         let frame_length = buf.get_u32() as usize;
 
         // Limit the read to this very frame
-        let mut decoder = SftpDecoder::new(&buf[0..frame_length]);
+        Message::decode_raw(&buf[0..frame_length])
+    }
 
-        let message_with_id = MessageWithId::deserialize(&mut decoder).map_err(Into::into)?;
+    pub fn decode_raw(mut buf: &[u8]) -> Result<(u32, Self), DecodeError> {
+        let mut decoder = SftpDecoder::new(buf);
 
-        Ok((message_with_id.id, message_with_id.message.into_owned()))
+        match MessageWithId::deserialize(&mut decoder) {
+            Ok(message_with_id) => Ok((message_with_id.id, message_with_id.message.into_owned())),
+            Err(err) => {
+                let mut err = DecodeError::from(err);
+
+                if buf.remaining() >= std::mem::size_of::<u8>() {
+                    if let Ok(kind) = MessageKind::try_from(buf.get_u8()) {
+                        err.kind = Some(kind);
+                    }
+                }
+                if buf.remaining() >= std::mem::size_of::<u32>() {
+                    err.id = Some(buf.get_u32());
+                }
+
+                Err(err)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("{inner:?} (id: {id:?}, kind: {kind:?})")]
+pub struct DecodeError {
+    pub inner: crate::wire::Error,
+    pub id: Option<u32>,
+    pub kind: Option<MessageKind>,
+}
+
+impl From<crate::wire::Error> for DecodeError {
+    fn from(value: crate::wire::Error) -> Self {
+        Self {
+            inner: value,
+            id: None,
+            kind: None,
+        }
     }
 }
 

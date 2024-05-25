@@ -47,6 +47,12 @@ impl From<russh::Error> for Error {
     }
 }
 
+impl From<crate::message::DecodeError> for Error {
+    fn from(value: crate::message::DecodeError) -> Self {
+        Self::WireFormat(value.inner)
+    }
+}
+
 impl From<Error> for std::io::Error {
     fn from(value: Error) -> Self {
         match value {

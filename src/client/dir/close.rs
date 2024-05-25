@@ -84,6 +84,7 @@ impl<'a> DirClosing<'a> {
         dir.buffer = None;
         dir.pending = None;
         if let Some(handle) = dir.handle.take() {
+            log::trace!("wait for closing");
             let pending = dir.client.close(handle.clone());
             return DirClosing(DirClosingState::Closing {
                 dir,
@@ -94,8 +95,10 @@ impl<'a> DirClosing<'a> {
 
         let stop = SftpClientStopping::new(&mut dir.client);
         if stop.is_stopped() {
+            log::trace!("closed and stopped");
             DirClosing(DirClosingState::Closed)
         } else {
+            log::trace!("closed, wait for stopping");
             DirClosing(DirClosingState::Stopping(stop))
         }
     }
