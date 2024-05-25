@@ -61,7 +61,7 @@ jobs:
           - { platform: sparc64-unknown-linux-gnu, os: linux, runner: ubuntu-latest, run: true }
 
           # MacOS
-          - { platform: aarch64-apple-darwin, os: darwin, runner: macos-latest, run: false }
+          - { platform: aarch64-apple-darwin, os: darwin, runner: macos-latest, run: true }
           - { platform: x86_64-apple-darwin, os: darwin, runner: macos-latest, run: true }
 
           # Windows
