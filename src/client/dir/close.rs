@@ -59,10 +59,7 @@ impl Dir {
 
 impl Drop for Dir {
     fn drop(&mut self) {
-        match DirClosing::new(self) {
-            DirClosing(DirClosingState::Closed) => (),
-            future => _ = futures::executor::block_on(future),
-        }
+        DirClosing::new(self).forget()
     }
 }
 
@@ -100,6 +97,21 @@ impl<'a> DirClosing<'a> {
         } else {
             log::trace!("closed, wait for stopping");
             DirClosing(DirClosingState::Stopping(stop))
+        }
+    }
+
+    fn forget(mut self) {
+        match std::mem::replace(&mut self.0, DirClosingState::Closed) {
+            DirClosingState::Closing {
+                dir,
+                handle: _,
+                pending: _,
+            } => {
+                log::trace!("Directory dropped while not closed");
+                SftpClientStopping::new(&mut dir.client).forget()
+            }
+            DirClosingState::Stopping(stopping) => stopping.forget(),
+            DirClosingState::Closed => (),
         }
     }
 }

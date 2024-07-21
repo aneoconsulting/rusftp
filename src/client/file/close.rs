@@ -55,10 +55,7 @@ impl File {
 
 impl Drop for File {
     fn drop(&mut self) {
-        match FileClosing::new(self) {
-            FileClosing(FileClosingState::Closed) => (),
-            future => _ = futures::executor::block_on(future),
-        }
+        FileClosing::new(self).forget()
     }
 }
 
@@ -97,6 +94,21 @@ impl<'a> FileClosing<'a> {
         } else {
             log::trace!("closed, wait for stopping");
             FileClosing(FileClosingState::Stopping(stop))
+        }
+    }
+
+    fn forget(mut self) {
+        match std::mem::replace(&mut self.0, FileClosingState::Closed) {
+            FileClosingState::Closing {
+                file,
+                handle: _,
+                pending: _,
+            } => {
+                log::trace!("File dropped while not closed");
+                SftpClientStopping::new(&mut file.client).forget()
+            }
+            FileClosingState::Stopping(stopping) => stopping.forget(),
+            FileClosingState::Closed => (),
         }
     }
 }

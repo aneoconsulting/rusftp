@@ -215,22 +215,22 @@ impl<'de> Deserialize<'de> for Attrs {
                 if !(attr_flags & AttrFlags::Size).is_empty() {
                     attrs.size = Some(next!(seq, "attr_size"));
                 } else {
-                    next!(seq, "attr_size");
+                    let () = next!(seq, "attr_size");
                 }
                 if !(attr_flags & AttrFlags::Owner).is_empty() {
                     attrs.owner = Some(next!(seq, "attr_owner"));
                 } else {
-                    next!(seq, "attr_owner");
+                    let () = next!(seq, "attr_owner");
                 }
                 if !(attr_flags & AttrFlags::Perms).is_empty() {
                     attrs.perms = Some(next!(seq, "attr_perms"));
                 } else {
-                    next!(seq, "attr_perms");
+                    let () = next!(seq, "attr_perms");
                 }
                 if !(attr_flags & AttrFlags::Time).is_empty() {
                     attrs.time = Some(next!(seq, "attr_time"));
                 } else {
-                    next!(seq, "attr_time");
+                    let () = next!(seq, "attr_time");
                 }
 
                 Ok(attrs)
