@@ -228,7 +228,7 @@ macro_rules! messages {
                         let no_value = || ::serde::de::Error::custom("no value found");
                         let code = seq.next_element::<u8>()?.ok_or_else(no_value)?;
                         let (id, message) = if code == Init::DISCRIMINANT || code == Version::DISCRIMINANT {
-                            seq.next_element()?.ok_or_else(no_value)?;
+                            let () = seq.next_element()?.ok_or_else(no_value)?;
                             if code == Init::DISCRIMINANT {
                                 (0, Message::Init(seq.next_element()?.ok_or_else(no_value)?))
                             } else {
