@@ -18,12 +18,12 @@ bitflags = { version = "2.5", features = ["serde"] }
 bytes = { version = "1.6", features = ["serde"] }
 futures = "0.3"
 log = "0.4"
-russh = "0.43"
+russh = "0.44"
 serde = "1.0"
 thiserror = "1.0"
 tokio = "1.37"
 
 [dev-dependencies]
 env_logger = "0.11"
-russh-keys = "0.43"
+russh-keys = "0.44"
 tokio-test = "0.4"
