@@ -47,12 +47,7 @@ impl SftpClient {
 
 impl Drop for SftpClient {
     fn drop(&mut self) {
-        let stop = SftpClientStopping::new(self);
-
-        // Avoid nested execution
-        if !stop.is_stopped() {
-            futures::executor::block_on(stop);
-        }
+        SftpClientStopping::new(self).forget();
     }
 }
 
@@ -91,6 +86,12 @@ impl<'a> SftpClientStopping<'a> {
 
     pub(super) fn is_stopped(&self) -> bool {
         self.request_processor.is_none()
+    }
+
+    pub(super) fn forget(mut self) {
+        if self.request_processor.take().is_some() {
+            log::trace!("SftpClient dropped while not stopped");
+        }
     }
 }
 
